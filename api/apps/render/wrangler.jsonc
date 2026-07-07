@@ -1,0 +1,75 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "render",
+  "account_id": "58f07fb13c26e83dd6109d957083478d",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-01-10",
+  "compatibility_flags": ["nodejs_compat"],
+  "observability": {
+    "enabled": true
+  },
+
+  // Stuck-job reaper (plan §8 Phase 3): every 10 minutes
+  "triggers": {
+    "crons": ["*/10 * * * *"]
+  },
+
+  // D1 — projects, render_jobs, notifications, token_transactions
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "ai-video-db",
+      "database_id": "42aede4d-4f0c-41da-86d0-4a2bce18d83a"
+    }
+  ],
+
+  // R2 — read composition assets (images/voiceover) and write finished renders.
+  // Bucket bindings are only usable from Worker code (the consumer); the
+  // Container runtime cannot see Worker bindings, so R2 credentials are also
+  // passed to the container as plain env vars (see `containers[0]`) via
+  // secrets set with `wrangler secret put`.
+  "r2_buckets": [
+    { "binding": "ASSETS_BUCKET", "bucket_name": "assets" },
+    { "binding": "RENDERS_BUCKET", "bucket_name": "renders" }
+  ],
+
+  // Queue consumer — jobs enqueued by apps/api producer
+  "queues": {
+    "consumers": [
+      {
+        "queue": "render-queue",
+        "max_concurrency": 5,
+        "max_batch_size": 1,
+        "max_batch_timeout": 5,
+        "max_retries": 3,
+        "dead_letter_queue": "render-dlq"
+      }
+    ]
+  },
+
+  // Durable Objects — RenderJobDO (live job state/WS) + RendererContainer
+  // (the Container class itself is DO-backed; see @cloudflare/containers).
+  "durable_objects": {
+    "bindings": [
+      { "name": "RENDER_JOB_DO", "class_name": "RenderJobDO" },
+      { "name": "RENDERER", "class_name": "RendererContainer" }
+    ]
+  },
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_sqlite_classes": ["RenderJobDO", "RendererContainer"]
+    }
+  ],
+
+  // Container — Remotion renderer, one instance per render job
+  // (env.RENDERER.getByName(jobId)).
+  "containers": [
+    {
+      "class_name": "RendererContainer",
+      "image": "../../containers/renderer/Dockerfile",
+      "instance_type": "standard-4",
+      "max_instances": 5
+    }
+  ]
+}

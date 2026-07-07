@@ -1,0 +1,83 @@
+{
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"name": "api",
+	"account_id": "58f07fb13c26e83dd6109d957083478d",
+  "main": "src/index.ts",
+	"compatibility_date": "2026-01-10",
+	"compatibility_flags": ["nodejs_compat"],
+	"observability": {
+		"enabled": true
+	},
+
+	// ---- D1 ----
+	"d1_databases": [
+		{
+			"binding": "DB",
+			"database_name": "ai-video-db",
+			"database_id": "42aede4d-4f0c-41da-86d0-4a2bce18d83a"
+		}
+	],
+
+	// ---- KV ----
+	"kv_namespaces": [
+		{
+			"binding": "KV",
+			"id": "5a5e2238fcc5423d8a9d3ec4dd94121f"
+		}
+	],
+
+	// ---- R2 ----
+	"r2_buckets": [
+		{ "binding": "ASSETS_BUCKET", "bucket_name": "assets" },
+		{ "binding": "RENDERS_BUCKET", "bucket_name": "renders" },
+		{ "binding": "UPLOADS_BUCKET", "bucket_name": "uploads" }
+	],
+
+	// ---- Queues (producer only, apps/render is the consumer) ----
+	"queues": {
+		"producers": [
+			{ "binding": "RENDER_QUEUE", "queue": "render-queue" }
+		]
+	},
+
+	// ---- Workflows (defined in apps/pipeline, bound cross-script) ----
+	"workflows": [
+		{
+			"binding": "GENERATION_PIPELINE",
+			"name": "generation-pipeline",
+			"class_name": "GenerationPipeline",
+			"script_name": "pipeline"
+		},
+		{
+			"binding": "REGEN_IMAGE",
+			"name": "regen-image",
+			"class_name": "RegenerateSceneImage",
+			"script_name": "pipeline"
+		},
+		{
+			"binding": "REGEN_VOICE",
+			"name": "regen-voice",
+			"class_name": "RegenerateVoiceover",
+			"script_name": "pipeline"
+		}
+	],
+
+	// ---- Service binding to apps/render (for RenderJobDO access) ----
+	"services": [
+		{ "binding": "RENDER_SERVICE", "service": "render" }
+	],
+
+	// ---- Non-secret env vars ----
+	"vars": {
+		"AI_GATEWAY_BASE_URL": "https://gateway.ai.cloudflare.com/v1/58f07fb13c26e83dd6109d957083478d/ai-video",
+		"APP_BASE_URL": "https://api.gokulhansv.workers.dev"
+	}
+
+	// Secrets (set via `wrangler secret put <NAME>`, NOT stored here):
+	// OPENAI_API_KEY, GEMINI_API_KEY, REPLICATE_API_TOKEN, FCM_SERVICE_ACCOUNT_JSON,
+	// EMAIL_API_KEY, BETTER_AUTH_SECRET, GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET,
+	// R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY (R2 S3-API creds for
+	// presigned URLs — not in CONTRACTS.md, see README "Deviations"),
+	// GOOGLE_PLAY_SERVICE_ACCOUNT_JSON (Play Billing verification — also not in
+	// CONTRACTS.md, see README "Deviations").
+}

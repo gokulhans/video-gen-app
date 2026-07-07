@@ -1,0 +1,14 @@
+{
+  "name": "ai-video-cf",
+  "private": true,
+  "packageManager": "pnpm@9.15.0",
+  "scripts": {
+    "typecheck": "pnpm -r typecheck",
+    "deploy": "pnpm -r deploy"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.0",
+    "wrangler": "^4.0.0",
+    "@cloudflare/workers-types": "^4.20260110.0"
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "name": "@app/db",
+  "version": "0.0.1",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.js",
+    "./schema": "./src/schema.js"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "drizzle-orm": "^0.44.2",
+    "nanoid": "^5.1.5"
+  },
+  "devDependencies": {
+    "drizzle-kit": "^0.31.4",
+    "typescript": "^5.7.0"
+  }
+}

@@ -1,0 +1,80 @@
+# Dependencies
+node_modules/
+pnpm-lock.yaml
+npm-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# Build outputs
+dist/
+build/
+.next/
+.nuxt/
+out/
+.cache/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+*.iml
+.DS_Store
+Thumbs.db
+
+# Cloudflare
+.wrangler/
+wrangler-dist/
+
+# Flutter
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+pubspec.lock
+*.iml
+*.lock
+local.properties
+
+# Flutter Android
+app/android/local.properties
+app/android/.gradle/
+app/android/gradlew.local.properties
+app/build/
+
+# iOS
+app/ios/Pods/
+app/ios/Podfile.lock
+app/.symlinks/
+app/Flutter/Flutter.podspec
+
+# macOS
+app/macos/Pods/
+app/macos/Podfile.lock
+
+# Testing
+coverage/
+.nyc_output/
+
+# Misc
+*.log
+*.pid
+*.seed
+*.pid.lock
+.temp/
+tmp/
+*.bak
+
+# OS specific
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db

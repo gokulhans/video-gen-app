@@ -1,0 +1,219 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Admin Dashboard</title>
+  <style>
+    :root {
+      --bg: #0d0f12;
+      --panel: #16191f;
+      --panel-2: #1c2028;
+      --border: #262b35;
+      --text: #e6e8eb;
+      --text-dim: #9aa2b1;
+      --accent: #5b8cff;
+      --accent-2: #7bdca4;
+      --danger: #ff6b6b;
+      --warn: #ffb84d;
+      --radius: 8px;
+    }
+    * { box-sizing: border-box; }
+    html, body { height: 100%; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      font-size: 14px;
+    }
+    a { color: var(--accent); }
+    button {
+      font-family: inherit;
+      cursor: pointer;
+      background: var(--accent);
+      color: #05070a;
+      border: none;
+      border-radius: var(--radius);
+      padding: 8px 14px;
+      font-weight: 600;
+      font-size: 13px;
+    }
+    button.secondary {
+      background: var(--panel-2);
+      color: var(--text);
+      border: 1px solid var(--border);
+    }
+    button.danger { background: var(--danger); color: #1a0505; }
+    button:disabled { opacity: 0.5; cursor: not-allowed; }
+    input, select {
+      background: var(--panel-2);
+      border: 1px solid var(--border);
+      color: var(--text);
+      border-radius: var(--radius);
+      padding: 7px 10px;
+      font-size: 13px;
+      font-family: inherit;
+    }
+    input:focus, select:focus, button:focus { outline: 1px solid var(--accent); }
+
+    #login-view {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .login-card {
+      width: 360px;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 28px;
+    }
+    .login-card h1 { font-size: 18px; margin: 0 0 4px; }
+    .login-card p.sub { color: var(--text-dim); margin: 0 0 20px; font-size: 13px; }
+    .field { margin-bottom: 12px; }
+    .field label { display: block; margin-bottom: 4px; color: var(--text-dim); font-size: 12px; }
+    .field input { width: 100%; }
+    .tabs-mini { display: flex; gap: 4px; margin-bottom: 16px; background: var(--panel-2); border-radius: var(--radius); padding: 3px; }
+    .tabs-mini button { flex: 1; background: transparent; color: var(--text-dim); }
+    .tabs-mini button.active { background: var(--panel); color: var(--text); }
+    .error-box { background: rgba(255,107,107,0.1); border: 1px solid var(--danger); color: var(--danger); padding: 8px 10px; border-radius: var(--radius); font-size: 12px; margin-bottom: 12px; }
+
+    #app-view { display: none; min-height: 100vh; }
+    header.topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 20px;
+      border-bottom: 1px solid var(--border);
+      background: var(--panel);
+    }
+    header.topbar .brand { font-weight: 700; letter-spacing: 0.3px; }
+    header.topbar .who { color: var(--text-dim); font-size: 12px; }
+    nav.tabs {
+      display: flex;
+      gap: 2px;
+      padding: 0 20px;
+      background: var(--panel);
+      border-bottom: 1px solid var(--border);
+      overflow-x: auto;
+    }
+    nav.tabs button {
+      background: transparent;
+      color: var(--text-dim);
+      border-radius: 0;
+      padding: 12px 14px;
+      font-weight: 500;
+      border-bottom: 2px solid transparent;
+    }
+    nav.tabs button.active {
+      color: var(--text);
+      border-bottom-color: var(--accent);
+    }
+    main { padding: 20px; max-width: 1200px; margin: 0 auto; }
+    .panel { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 18px; margin-bottom: 16px; }
+    .panel h2 { margin: 0 0 14px; font-size: 15px; }
+    .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; }
+    .stat-tile { background: var(--panel-2); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px; }
+    .stat-tile .label { color: var(--text-dim); font-size: 12px; margin-bottom: 6px; }
+    .stat-tile .value { font-size: 22px; font-weight: 700; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+    th { color: var(--text-dim); font-weight: 500; font-size: 12px; }
+    tbody tr:hover { background: rgba(255,255,255,0.02); }
+    .toolbar { display: flex; gap: 8px; align-items: center; margin-bottom: 14px; flex-wrap: wrap; }
+    .toolbar .spacer { flex: 1; }
+    .pill { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 600; }
+    .pill.ok { background: rgba(123,220,164,0.15); color: var(--accent-2); }
+    .pill.warn { background: rgba(255,184,77,0.15); color: var(--warn); }
+    .pill.danger { background: rgba(255,107,107,0.15); color: var(--danger); }
+    .pill.neutral { background: var(--panel-2); color: var(--text-dim); border: 1px solid var(--border); }
+    .pager { display: flex; gap: 8px; align-items: center; margin-top: 12px; justify-content: flex-end; }
+    .pager span { color: var(--text-dim); font-size: 12px; }
+    .row-actions { display: flex; gap: 6px; }
+    .row-actions button { padding: 4px 8px; font-size: 12px; }
+    .empty { color: var(--text-dim); padding: 20px; text-align: center; }
+    .toast {
+      position: fixed; bottom: 20px; right: 20px;
+      background: var(--panel-2); border: 1px solid var(--border);
+      padding: 10px 16px; border-radius: var(--radius);
+      font-size: 13px; z-index: 50;
+    }
+    .toast.error { border-color: var(--danger); color: var(--danger); }
+    .toast.success { border-color: var(--accent-2); color: var(--accent-2); }
+    .modal-backdrop {
+      position: fixed; inset: 0; background: rgba(0,0,0,0.55);
+      display: flex; align-items: center; justify-content: center; z-index: 40;
+    }
+    .modal {
+      background: var(--panel); border: 1px solid var(--border);
+      border-radius: 10px; padding: 20px; width: 420px; max-width: 92vw;
+      max-height: 86vh; overflow-y: auto;
+    }
+    .modal h3 { margin: 0 0 14px; font-size: 15px; }
+    .modal .field textarea {
+      width: 100%; background: var(--panel-2); border: 1px solid var(--border);
+      color: var(--text); border-radius: var(--radius); padding: 7px 10px; font-family: inherit; font-size: 13px;
+      min-height: 70px; resize: vertical;
+    }
+    .modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; }
+    .checkbox-field { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
+    .checkbox-field label { color: var(--text-dim); font-size: 13px; }
+    code.mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12px; color: var(--text-dim); }
+  </style>
+</head>
+<body>
+  <div id="login-view">
+    <div class="login-card">
+      <h1>Admin Dashboard</h1>
+      <p class="sub">Sign in to manage users, tokens, and content.</p>
+      <div id="login-error"></div>
+      <div class="tabs-mini">
+        <button id="login-tab-token" class="active" type="button">Bearer token</button>
+        <button id="login-tab-pw" type="button">Email / password</button>
+      </div>
+      <form id="login-form-token">
+        <div class="field">
+          <label for="token-input">Session bearer token</label>
+          <input id="token-input" type="password" autocomplete="off" placeholder="paste token" />
+        </div>
+        <button type="submit" style="width:100%">Continue</button>
+      </form>
+      <form id="login-form-pw" style="display:none">
+        <div class="field">
+          <label for="email-input">Email</label>
+          <input id="email-input" type="email" autocomplete="username" />
+        </div>
+        <div class="field">
+          <label for="password-input">Password</label>
+          <input id="password-input" type="password" autocomplete="current-password" />
+        </div>
+        <button type="submit" style="width:100%">Sign in</button>
+      </form>
+    </div>
+  </div>
+
+  <div id="app-view">
+    <header class="topbar">
+      <div class="brand">Admin Dashboard</div>
+      <div style="display:flex; align-items:center; gap:12px;">
+        <span class="who" id="who-label"></span>
+        <button class="secondary" id="logout-btn">Log out</button>
+      </div>
+    </header>
+    <nav class="tabs" id="tabs">
+      <button data-tab="stats" class="active">Stats</button>
+      <button data-tab="users">Users</button>
+      <button data-tab="transactions">Transactions</button>
+      <button data-tab="costs">Token costs</button>
+      <button data-tab="settings">Settings</button>
+      <button data-tab="render-jobs">Render jobs</button>
+      <button data-tab="templates">Templates</button>
+    </nav>
+    <main id="main"></main>
+  </div>
+
+  <script type="module" src="/app.js"></script>
+</body>
+</html>
