@@ -39,8 +39,9 @@ RUN npm install --omit=dev
 
 # Pre-download Remotion's managed Chromium build at image-build time so the
 # first render doesn't pay that cost (and so the container has no need for
-# outbound internet access to fetch it at runtime).
-RUN npx remotion browser ensure
+# outbound internet access to fetch it at runtime). The `remotion` package has
+# no CLI (that's @remotion/cli); use @remotion/renderer's ensureBrowser() API.
+RUN node -e "import('@remotion/renderer').then(m => m.ensureBrowser()).then(() => console.log('Chromium ready'))"
 
 COPY server.mjs ./
 COPY remotion ./remotion
