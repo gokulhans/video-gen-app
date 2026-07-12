@@ -42,7 +42,10 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       context.go('/home');
       return;
     }
-    _controller.nextPage(duration: const Duration(milliseconds: 300), curve: Curves.easeOut);
+    _controller.nextPage(
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeOut,
+    );
   }
 
   @override
@@ -70,7 +73,11 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(page.icon, size: 96, color: Theme.of(context).colorScheme.primary),
+                        Icon(
+                          page.icon,
+                          size: 96,
+                          color: Theme.of(context).colorScheme.primary,
+                        ),
                         const SizedBox(height: 32),
                         Text(
                           page.title,
@@ -95,7 +102,10 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 _pages.length,
                 (i) => AnimatedContainer(
                   duration: const Duration(milliseconds: 200),
-                  margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 24),
+                  margin: const EdgeInsets.symmetric(
+                    horizontal: 4,
+                    vertical: 24,
+                  ),
                   width: i == _index ? 24 : 8,
                   height: 8,
                   decoration: BoxDecoration(
@@ -113,7 +123,9 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 width: double.infinity,
                 child: FilledButton(
                   onPressed: _next,
-                  child: Text(_index == _pages.length - 1 ? 'Get started' : 'Next'),
+                  child: Text(
+                    _index == _pages.length - 1 ? 'Get started' : 'Next',
+                  ),
                 ),
               ),
             ),

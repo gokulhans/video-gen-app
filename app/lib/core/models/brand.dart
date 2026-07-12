@@ -30,50 +30,50 @@ class Brand extends Equatable {
   final LogoPosition logoPosition;
 
   factory Brand.fromJson(Map<String, dynamic> json) => Brand(
-        id: json['id'] as String,
-        name: json['name'] as String? ?? 'My brand',
-        logoUrl: json['logoUrl'] as String?,
-        primaryColor: json['primaryColor'] as String?,
-        secondaryColor: json['secondaryColor'] as String?,
-        font: json['font'] as String?,
-        phone: json['phone'] as String?,
-        website: json['website'] as String?,
-        watermark: json['watermark'] as bool? ?? true,
-        logoPosition: LogoPositionX.fromWire(json['logoPosition'] as String?),
-      );
+    id: json['id'] as String,
+    name: json['name'] as String? ?? 'My brand',
+    logoUrl: json['logoUrl'] as String?,
+    primaryColor: json['primaryColor'] as String?,
+    secondaryColor: json['secondaryColor'] as String?,
+    font: json['font'] as String?,
+    phone: json['phone'] as String?,
+    website: json['website'] as String?,
+    watermark: json['watermark'] as bool? ?? true,
+    logoPosition: LogoPositionX.fromWire(json['logoPosition'] as String?),
+  );
 
   Map<String, dynamic> toJson() => {
-        'name': name,
-        'logoUrl': logoUrl,
-        'primaryColor': primaryColor,
-        'secondaryColor': secondaryColor,
-        'font': font,
-        'phone': phone,
-        'website': website,
-        'watermark': watermark,
-        'logoPosition': logoPosition.wireValue,
-      };
+    'name': name,
+    'logoUrl': logoUrl,
+    'primaryColor': primaryColor,
+    'secondaryColor': secondaryColor,
+    'font': font,
+    'phone': phone,
+    'website': website,
+    'watermark': watermark,
+    'logoPosition': logoPosition.wireValue,
+  };
 
   BrandConfig toBrandConfig() => BrandConfig(
-        logoUrl: logoUrl,
-        logoPosition: logoPosition,
-        primaryColor: primaryColor,
-        phone: phone,
-        website: website,
-        watermark: watermark,
-      );
+    logoUrl: logoUrl,
+    logoPosition: logoPosition,
+    primaryColor: primaryColor,
+    phone: phone,
+    website: website,
+    watermark: watermark,
+  );
 
   @override
   List<Object?> get props => [
-        id,
-        name,
-        logoUrl,
-        primaryColor,
-        secondaryColor,
-        font,
-        phone,
-        website,
-        watermark,
-        logoPosition,
-      ];
+    id,
+    name,
+    logoUrl,
+    primaryColor,
+    secondaryColor,
+    font,
+    phone,
+    website,
+    watermark,
+    logoPosition,
+  ];
 }

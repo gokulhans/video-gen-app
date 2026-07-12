@@ -5,9 +5,11 @@ import { eq, and, sql } from "drizzle-orm";
 import { nanoid } from "nanoid";
 import { getDb, schema } from "@app/db";
 import type { RenderQueueMessage } from "@app/shared";
+import { DEFAULT_TOKEN_COSTS } from "@app/shared";
 import type { AppEnv } from "../env";
 import { Errors, okJson } from "../lib/response";
 import { checkRateLimit } from "../lib/rate-limit";
+import { presignGet } from "../lib/r2";
 
 export const render = new Hono<AppEnv>();
 
@@ -21,6 +23,12 @@ render.post("/projects/:id/render", zValidator("json", RenderBody), async (c) =>
 	const projectId = c.req.param("id");
 	const { resolution } = c.req.valid("json");
 	const db = getDb(c.env.DB);
+	const suppliedKey = c.req.header("idempotency-key");
+	const keySuffix = suppliedKey && /^[A-Za-z0-9._:-]{8,80}$/.test(suppliedKey) ? suppliedKey : crypto.randomUUID();
+	const idempotencyKey = `${userId}:render:${keySuffix}`;
+	const previous = await db.select().from(schema.renderJobs)
+		.where(and(eq(schema.renderJobs.userId, userId), eq(schema.renderJobs.idempotencyKey, idempotencyKey))).get();
+	if (previous) return okJson(c, previous, 202);
 
 	const rl = await checkRateLimit(c.env, userId, "render", 3);
 	if (!rl.allowed) return Errors.rateLimited(c);
@@ -38,33 +46,16 @@ render.post("/projects/:id/render", zValidator("json", RenderBody), async (c) =>
 		.from(schema.tokenCosts)
 		.where(and(eq(schema.tokenCosts.action, action), eq(schema.tokenCosts.isActive, true)))
 		.get();
-	const cost = costRow?.cost ?? (resolution === "1080p" ? 100 : 50);
+	const cost = costRow?.cost ?? DEFAULT_TOKEN_COSTS[action];
 
 	const jobId = nanoid();
 	const now = Date.now();
 	const nowDate = new Date();
 
-	// Token deduction: check balance + conditional decrement + ledger entry,
-	// all in one db.batch per CONTRACTS.md. A 0-row update means insufficient
-	// balance (someone else may have spent it between the read and the write).
-	const [, updateResult] = await db.batch([
-		db
-			.select({ tokens: schema.user.tokens })
-			.from(schema.user)
-			.where(eq(schema.user.id, userId)),
-		db
+	const updateResult = await db
 			.update(schema.user)
 			.set({ tokens: sql`${schema.user.tokens} - ${cost}`, updatedAt: nowDate })
-			.where(and(eq(schema.user.id, userId), sql`${schema.user.tokens} >= ${cost}`)),
-		db.insert(schema.tokenTransactions).values({
-			id: nanoid(),
-			userId,
-			amount: -cost,
-			type: "render",
-			description: `Render (${resolution})`,
-			projectId,
-		}),
-	]);
+			.where(and(eq(schema.user.id, userId), sql`${schema.user.tokens} >= ${cost}`));
 
 	const rowsAffected =
 		(updateResult as unknown as { meta?: { changes?: number }; rowsAffected?: number })?.meta
@@ -75,19 +66,34 @@ render.post("/projects/:id/render", zValidator("json", RenderBody), async (c) =>
 		return Errors.insufficientTokens(c);
 	}
 
-	await db.insert(schema.renderJobs).values({
-		id: jobId,
-		userId,
-		projectId,
-		resolution,
-		status: "queued",
-		progress: 0,
-		createdAt: now,
-		updatedAt: now,
-	});
+	try {
+		await db.batch([
+			db.insert(schema.tokenTransactions).values({
+				id: nanoid(), userId, amount: -cost, type: "render", description: `Render (${resolution})`,
+				projectId, operationKey: `render:${idempotencyKey}:debit`,
+			}),
+			db.insert(schema.renderJobs).values({
+				id: jobId, userId, projectId, resolution, status: "queued", progress: 0,
+				idempotencyKey, chargedTokens: cost, createdAt: now, updatedAt: now,
+			}),
+		]);
+	} catch (error) {
+		await db.update(schema.user).set({ tokens: sql`${schema.user.tokens} + ${cost}`, updatedAt: new Date() })
+			.where(eq(schema.user.id, userId));
+		throw error;
+	}
 
 	const queueMessage: RenderQueueMessage = { jobId, projectId, userId, resolution };
-	await c.env.RENDER_QUEUE.send(queueMessage);
+	try {
+		await c.env.RENDER_QUEUE.send(queueMessage);
+	} catch (error) {
+		await db.batch([
+			db.update(schema.renderJobs).set({ status: "failed", error: "Render could not be queued", refundedAt: Date.now(), updatedAt: Date.now() }).where(eq(schema.renderJobs.id, jobId)),
+			db.update(schema.user).set({ tokens: sql`${schema.user.tokens} + ${cost}`, updatedAt: new Date() }).where(eq(schema.user.id, userId)),
+			db.insert(schema.tokenTransactions).values({ id: nanoid(), userId, amount: cost, type: "refund", description: `Refund: render ${jobId} could not be queued`, projectId, operationKey: `render:${jobId}:refund` }),
+		]);
+		throw error;
+	}
 
 	// Initialize the RenderJobDO via the render worker's HTTP surface.
 	try {
@@ -102,7 +108,8 @@ render.post("/projects/:id/render", zValidator("json", RenderBody), async (c) =>
 		console.error("RenderJobDO init failed", e);
 	}
 
-	return okJson(c, { jobId, status: "queued", resolution }, 202);
+	const created = await db.select().from(schema.renderJobs).where(eq(schema.renderJobs.id, jobId)).get();
+	return okJson(c, created, 202);
 });
 
 // ---------- GET /render-jobs/:id ----------
@@ -117,25 +124,31 @@ render.get("/render-jobs/:id", async (c) => {
 		.where(and(eq(schema.renderJobs.id, jobId), eq(schema.renderJobs.userId, userId)))
 		.get();
 	if (!row) return Errors.notFound(c, "Render job not found");
+	const publicJob = async (job: typeof row) => ({
+		...job,
+		videoUrl: job.videoUrl && !job.videoUrl.startsWith("http")
+			? await presignGet(c.env, "renders", job.videoUrl)
+			: job.videoUrl,
+	});
 
 	try {
 		const res = await c.env.RENDER_SERVICE.fetch(`https://render/do/${jobId}/status`);
 		if (res.ok) {
-			const doStatus = await res.json();
-			return okJson(c, doStatus);
+			const body = await res.json() as { data?: { jobId?: string; status?: string; progress?: number; videoUrl?: string; error?: string } };
+			return okJson(c, await publicJob({
+				...row,
+				status: body.data?.status ?? row.status,
+				progress: body.data?.progress ?? row.progress,
+				videoUrl: body.data?.videoUrl ?? row.videoUrl,
+				error: body.data?.error ?? row.error,
+			}));
 		}
 	} catch (e) {
 		console.error("RenderJobDO status fetch failed, falling back to D1", e);
 	}
 
 	// Fallback to the D1 row (updated by the queue consumer / DO progress pushes).
-	return okJson(c, {
-		jobId: row.id,
-		status: row.status,
-		progress: row.progress,
-		videoUrl: row.videoUrl ?? undefined,
-		error: row.error ?? undefined,
-	});
+	return okJson(c, await publicJob(row));
 });
 
 // ---------- GET /render-jobs/:id/ws (WebSocket upgrade proxy) ----------

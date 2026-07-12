@@ -20,6 +20,7 @@ export const Errors = {
 	badRequest: (c: Context, message = "Invalid request") =>
 		errJson(c, 400, "bad_request", message),
 	validation: (c: Context, message: string) => errJson(c, 422, "validation_error", message),
+	conflict: (c: Context, message = "Conflict") => errJson(c, 409, "conflict", message),
 	insufficientTokens: (c: Context, message = "Insufficient token balance") =>
 		errJson(c, 402, "insufficient_tokens", message),
 	rateLimited: (c: Context, message = "Too many requests") =>

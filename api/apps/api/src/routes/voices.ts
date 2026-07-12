@@ -24,4 +24,14 @@ const VOICES = [
 
 export const voices = new Hono<AppEnv>();
 
-voices.get("/", (c) => okJson(c, VOICES));
+voices.get("/", (c) => {
+	const language = c.req.query("language");
+	const rows = (language ? VOICES.filter((voice) => voice.languages.includes(language)) : VOICES)
+		.map((voice) => ({
+			...voice,
+			label: voice.name,
+			language: language ?? voice.languages[0],
+			sampleUrl: `${c.env.APP_BASE_URL.replace(/\/$/, "")}/assets/${voice.sampleKey}`,
+		}));
+	return okJson(c, rows);
+});

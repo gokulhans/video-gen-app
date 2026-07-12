@@ -17,14 +17,55 @@ import { voices } from "./routes/voices";
 
 const app = new Hono<AppEnv>();
 
+app.use("*", async (c, next) => {
+	const requestId = c.req.header("cf-ray") ?? crypto.randomUUID();
+	c.header("x-request-id", requestId);
+	await next();
+});
+
 app.use(
 	"*",
 	cors({
-		origin: (origin) => origin ?? "*",
+		origin: (origin, c) => {
+			if (!origin) return "";
+			const allowed = new Set(
+				(c.env.ALLOWED_ORIGINS ?? "")
+					.split(",")
+					.map((value: string) => value.trim())
+					.filter(Boolean),
+			);
+			return allowed.has(origin) ? origin : "";
+		},
 		credentials: true,
-		allowHeaders: ["Content-Type", "Authorization"],
+		allowHeaders: ["Content-Type", "Authorization", "Idempotency-Key"],
+		exposeHeaders: ["x-request-id"],
 	}),
 );
+
+// Generated pipeline assets are intentionally public-by-unguessable-key so
+// Remotion, media players, and external AI providers can fetch them. User
+// uploads remain private in UPLOADS_BUCKET and are only exposed by presigned
+// URLs from the authenticated /api/v1/assets routes.
+app.get("/assets/*", async (c) => {
+	let key: string;
+	try {
+		key = decodeURIComponent(new URL(c.req.url).pathname.slice("/assets/".length));
+	} catch {
+		return Errors.badRequest(c, "Invalid asset key");
+	}
+	if (!key || key.length > 1_024 || key.startsWith("/") || key.split("/").some((part) => !part || part === "." || part === "..")) {
+		return Errors.badRequest(c, "Invalid asset key");
+	}
+	const object = await c.env.ASSETS_BUCKET.get(key);
+	if (!object) return Errors.notFound(c, "Asset not found");
+	const headers = new Headers({
+		"cache-control": "public, max-age=31536000, immutable",
+		"x-content-type-options": "nosniff",
+		etag: object.httpEtag,
+	});
+	object.writeHttpMetadata(headers);
+	return new Response(object.body, { headers });
+});
 
 // ---------- better-auth handler ----------
 // Mounted before the /api/v1 auth gate — better-auth manages its own routes
@@ -55,8 +96,14 @@ app.get("/health", (c) => c.json({ ok: true }));
 app.notFound((c) => Errors.notFound(c, "Route not found"));
 
 app.onError((e, c) => {
-	console.error("Unhandled error", e);
-	return Errors.internal(c, e instanceof Error ? e.message : "Internal error");
+	console.error(JSON.stringify({
+		event: "unhandled_api_error",
+		requestId: c.res.headers.get("x-request-id"),
+		method: c.req.method,
+		path: c.req.path,
+		error: e instanceof Error ? e.message : String(e),
+	}));
+	return Errors.internal(c, "Internal server error");
 });
 
 export default app;

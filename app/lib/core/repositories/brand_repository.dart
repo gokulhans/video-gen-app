@@ -12,8 +12,9 @@ class BrandRepository {
   Future<List<Brand>> listBrands() {
     return _api.get<List<Brand>>(
       '/brands',
-      parser: (json) =>
-          (json as List<dynamic>).map((e) => Brand.fromJson(e as Map<String, dynamic>)).toList(),
+      parser: (json) => (json as List<dynamic>)
+          .map((e) => Brand.fromJson(e as Map<String, dynamic>))
+          .toList(),
     );
   }
 
@@ -26,7 +27,7 @@ class BrandRepository {
   }
 
   Future<Brand> updateBrand(String id, Brand brand) {
-    return _api.put<Brand>(
+    return _api.patch<Brand>(
       '/brands/$id',
       body: brand.toJson(),
       parser: (json) => Brand.fromJson(json as Map<String, dynamic>),

@@ -77,6 +77,11 @@ export const projects = sqliteTable("projects", {
 	schemaVersion: integer("schema_version").notNull().default(1),
 	generationStatus: text("generation_status").default("idle"), // idle|running|failed|complete
 	workflowInstanceId: text("workflow_instance_id"),
+	generationRequestKey: text("generation_request_key").unique(),
+	generationParams: text("generation_params", { mode: "json" }),
+	generationStage: text("generation_stage").default("script"),
+	generationProgress: integer("generation_progress").default(0),
+	generationError: text("generation_error"),
 	userId: text("user_id").notNull().references(() => user.id, { onDelete: "cascade" }),
 	createdAt: ts("created_at").notNull().$defaultFn(now),
 	updatedAt: ts("updated_at").notNull().$defaultFn(now),
@@ -93,6 +98,7 @@ export const brands = sqliteTable("brands", {
 	phone: text("phone"),
 	website: text("website"),
 	watermark: integer("watermark", { mode: "boolean" }).notNull().default(true),
+	logoPosition: text("logo_position").notNull().default("top_right"),
 	createdAt: ts("created_at").notNull().$defaultFn(now),
 	updatedAt: ts("updated_at").notNull().$defaultFn(now),
 });
@@ -119,6 +125,7 @@ export const tokenTransactions = sqliteTable("token_transactions", {
 	type: text("type").notNull(), // signup_bonus|purchase|script_generation|voice_generation|image_generation|render|refund|admin_grant
 	description: text("description").notNull(),
 	projectId: text("project_id").references(() => projects.id, { onDelete: "set null" }),
+	operationKey: text("operation_key").unique(),
 	createdAt: ts("created_at").notNull().$defaultFn(now),
 });
 
@@ -156,8 +163,21 @@ export const renderJobs = sqliteTable("render_jobs", {
 	videoUrl: text("video_url"),
 	progress: integer("progress").notNull().default(0),
 	error: text("error"),
+	idempotencyKey: text("idempotency_key").unique(),
+	chargedTokens: integer("charged_tokens").notNull().default(0),
+	refundedAt: ts("refunded_at"),
 	createdAt: ts("created_at").notNull().$defaultFn(now),
 	updatedAt: ts("updated_at").notNull().$defaultFn(now),
+});
+
+export const playPurchases = sqliteTable("play_purchases", {
+	id: text("id").primaryKey(),
+	userId: text("user_id").notNull().references(() => user.id, { onDelete: "cascade" }),
+	productId: text("product_id").notNull(),
+	purchaseTokenHash: text("purchase_token_hash").notNull().unique(),
+	orderId: text("order_id"),
+	tokenAmount: integer("token_amount").notNull(),
+	createdAt: ts("created_at").notNull().$defaultFn(now),
 });
 
 export const devices = sqliteTable("devices", {

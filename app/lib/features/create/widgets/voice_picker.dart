@@ -82,7 +82,10 @@ class _VoicePickerState extends State<VoicePicker> {
                     : Theme.of(context).colorScheme.surfaceContainerHighest,
                 borderRadius: BorderRadius.circular(14),
                 border: selected
-                    ? Border.all(color: Theme.of(context).colorScheme.primary, width: 2)
+                    ? Border.all(
+                        color: Theme.of(context).colorScheme.primary,
+                        width: 2,
+                      )
                     : null,
               ),
               child: Column(
@@ -90,7 +93,9 @@ class _VoicePickerState extends State<VoicePicker> {
                 children: [
                   IconButton(
                     onPressed: () => _togglePlay(voice),
-                    icon: Icon(playing ? Icons.stop_circle : Icons.play_circle_outline),
+                    icon: Icon(
+                      playing ? Icons.stop_circle : Icons.play_circle_outline,
+                    ),
                   ),
                   Text(
                     voice.label,

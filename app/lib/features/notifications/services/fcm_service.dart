@@ -4,6 +4,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/constants.dart';
 import '../../../core/repositories/notification_repository.dart';
 
 /// Handles Firebase Cloud Messaging setup: requesting permission,
@@ -19,7 +20,11 @@ class FcmService {
   final Ref _ref;
   final FirebaseMessaging _messaging = FirebaseMessaging.instance;
 
-  Future<void> initialize({required void Function(String projectId) onNotificationTap}) async {
+  Future<void> initialize({
+    required void Function(String projectId) onNotificationTap,
+  }) async {
+    if (!AppConstants.enableFirebase) return;
+
     if (Firebase.apps.isEmpty) {
       // main.dart is responsible for calling Firebase.initializeApp() with
       // platform options (google-services.json / GoogleService-Info.plist).
@@ -28,7 +33,11 @@ class FcmService {
       return;
     }
 
-    final settings = await _messaging.requestPermission(alert: true, badge: true, sound: true);
+    final settings = await _messaging.requestPermission(
+      alert: true,
+      badge: true,
+      sound: true,
+    );
     if (settings.authorizationStatus == AuthorizationStatus.denied) {
       return;
     }
@@ -61,7 +70,9 @@ class FcmService {
   Future<void> _registerToken(String token) async {
     try {
       final platform = Platform.isIOS ? 'ios' : 'android';
-      await _ref.read(notificationRepositoryProvider).registerDevice(fcmToken: token, platform: platform);
+      await _ref
+          .read(notificationRepositoryProvider)
+          .registerDevice(fcmToken: token, platform: platform);
     } catch (_) {
       // Best-effort; retried on next app start / token refresh.
     }

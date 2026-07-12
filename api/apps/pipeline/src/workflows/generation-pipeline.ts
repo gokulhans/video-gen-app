@@ -1,6 +1,6 @@
 import { WorkflowEntrypoint, WorkflowStep, WorkflowEvent } from "cloudflare:workers";
 import { NonRetryableError } from "cloudflare:workflows";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { nanoid } from "nanoid";
 import { getDb, schema } from "@app/db";
 import { GenerationParams, Scene, ProjectComposition, WordTimestamp } from "@app/shared";
@@ -9,7 +9,7 @@ import { assetUrl } from "../env.js";
 import { deductTokens, getTokenCost, refundTokens } from "../tokens.js";
 import { openaiChatCompletion, openaiTextToSpeech, openaiWordTimestamps } from "../providers/openai.js";
 import { geminiGenerateText, geminiTextToSpeech } from "../providers/gemini.js";
-import { replicateGenerateImage, replicateWordTimestamps } from "../providers/replicate.js";
+import { createFluxPrediction, downloadReplicateImage, waitForFluxPrediction } from "../providers/replicate.js";
 import { sendFcmPush } from "../providers/fcm.js";
 
 const SCRIPT_RETRIES = { limit: 3, delay: "5 seconds", backoff: "exponential" } as const;
@@ -62,10 +62,16 @@ Output ONLY the final voiceover script — no titles, scene markers, speaker lab
 }
 
 async function markProjectFailed(env: Env, projectId: string, userId: string, error: string) {
+  console.error(JSON.stringify({ event: "generation_failed", projectId, error }));
   const db = getDb(env.DB);
   await db
     .update(schema.projects)
-    .set({ generationStatus: "failed", updatedAt: Date.now() })
+    .set({
+      generationStatus: "failed",
+      generationStage: "failed",
+      generationError: "Video generation failed. Your tokens were refunded.",
+      updatedAt: Date.now(),
+    })
     .where(eq(schema.projects.id, projectId));
   // Surface the error via a notification row so the app can show it.
   await db.insert(schema.notifications).values({
@@ -73,7 +79,7 @@ async function markProjectFailed(env: Env, projectId: string, userId: string, er
     userId,
     type: "system",
     title: "Video generation failed",
-    message: error.slice(0, 500),
+    message: "Video generation failed. Your tokens were refunded. Please try again.",
     projectId,
   });
 }
@@ -99,6 +105,7 @@ export class GenerationPipeline extends WorkflowEntrypoint<Env, GenerationParams
         amount: total,
         type: "script_generation",
         description: `Video generation for project ${projectId}`,
+        operationKey: `generation:${event.instanceId}:debit`,
         projectId,
       });
 
@@ -149,17 +156,26 @@ export class GenerationPipeline extends WorkflowEntrypoint<Env, GenerationParams
           }
         }
       );
+      await step.do("progress-voice", async () => {
+        await getDb(env.DB).update(schema.projects).set({ generationStage: "voice", generationProgress: 20, updatedAt: Date.now() }).where(eq(schema.projects.id, projectId));
+      });
 
       // ---------- 4. generate-voiceover ----------
-      const voiceoverKey = `${userId}/${projectId}/voiceover.mp3`;
+      const geminiVoice = voice.startsWith("gemini:");
+      const voiceoverKey = `${userId}/${projectId}/voiceover.${geminiVoice ? "wav" : "mp3"}`;
       await step.do("generate-voiceover", { retries: VOICE_RETRIES, timeout: "3 minutes" }, async () => {
-        const audio = voice.startsWith("gemini:")
+        const audio = geminiVoice
           ? await geminiTextToSpeech(env, { text: script, voiceName: voice.slice("gemini:".length) })
           : await openaiTextToSpeech(env, { text: script, voice });
-        await env.ASSETS_BUCKET.put(voiceoverKey, audio, { httpMetadata: { contentType: "audio/mpeg" } });
+        await env.ASSETS_BUCKET.put(voiceoverKey, audio, {
+          httpMetadata: { contentType: geminiVoice ? "audio/wav" : "audio/mpeg" },
+        });
         return { bytes: audio.byteLength };
       });
       const voiceoverUrl = assetUrl(env, voiceoverKey);
+      await step.do("progress-captions", async () => {
+        await getDb(env.DB).update(schema.projects).set({ generationStage: "captions", generationProgress: 40, updatedAt: Date.now() }).where(eq(schema.projects.id, projectId));
+      });
 
       // ---------- 5. generate-timestamps ----------
       const words: WordTimestamp[] = await step.do(
@@ -169,13 +185,10 @@ export class GenerationPipeline extends WorkflowEntrypoint<Env, GenerationParams
           const audioObj = await env.ASSETS_BUCKET.get(voiceoverKey);
           if (!audioObj) throw new Error("Voiceover object missing from R2 after upload");
           const audioBuffer = await audioObj.arrayBuffer();
-          try {
-            return await openaiWordTimestamps(env, audioBuffer);
-          } catch (err) {
-            console.error("OpenAI Whisper failed, falling back to Replicate:", err);
-            // NOTE: requires ASSETS_BUCKET to be reachable at a public URL (custom domain).
-            return await replicateWordTimestamps(env, { audioUrl: voiceoverUrl });
-          }
+          // Replicate's current openai/whisper schema does not guarantee word-level
+          // timestamps. Keep one schema-verified source instead of silently falling
+          // back to an incompatible paid prediction.
+          return openaiWordTimestamps(env, audioBuffer);
         }
       );
 
@@ -220,30 +233,64 @@ ${listForPrompt}`;
           );
         }
       );
+      await step.do("progress-images", async () => {
+        await getDb(env.DB).update(schema.projects).set({ generationStage: "images", generationProgress: 60, updatedAt: Date.now() }).where(eq(schema.projects.id, projectId));
+      });
 
-      // ---------- 7. per-scene images, in parallel ----------
-      const sceneResults = await Promise.all(
-        scenes.map((scene) =>
-          step.do(`image-${scene.id}`, { timeout: "3 minutes" }, async () => {
-            try {
-              const imageBytes = await replicateGenerateImage(env, { prompt: scene.imagePrompt, aspectRatio: "9:16" });
-              const key = `${userId}/${projectId}/scenes/${scene.id}.webp`;
-              await env.ASSETS_BUCKET.put(key, imageBytes, { httpMetadata: { contentType: "image/webp" } });
-              return { ...scene, imageUrl: assetUrl(env, key), imageStatus: "ready" as const };
-            } catch (err) {
-              console.error(`Image generation failed for scene ${scene.id}:`, err);
-              return { ...scene, imageUrl: null, imageStatus: "failed" as const };
-            }
-          })
-        )
-      );
+      // ---------- 7. per-scene images, capped at four paid predictions ----------
+      // Prediction creation, polling, and persistence are separate durable steps.
+      // A storage retry therefore reuses the same provider result instead of paying
+      // for another prediction.
+      const sceneResults: Scene[] = [];
+      const imageConcurrency = 4;
+      for (let offset = 0; offset < scenes.length; offset += imageConcurrency) {
+        const chunk = scenes.slice(offset, offset + imageConcurrency);
+        const predictions = await Promise.all(
+          chunk.map((scene) =>
+            step.do(
+              `image-create-${scene.id}`,
+              { retries: { limit: 0, delay: "1 second" }, timeout: "30 seconds" },
+              () => createFluxPrediction(env, { prompt: scene.imagePrompt, aspectRatio: "9:16" }),
+            ),
+          ),
+        );
+        const outputUrls = await Promise.all(
+          predictions.map((prediction, index) =>
+            step.do(
+              `image-wait-${chunk[index].id}`,
+              { retries: { limit: 3, delay: "5 seconds", backoff: "exponential" }, timeout: "2 minutes" },
+              () => waitForFluxPrediction(env, prediction),
+            ),
+          ),
+        );
+        const persisted = await Promise.all(
+          outputUrls.map((outputUrl, index) => {
+            const scene = chunk[index];
+            return step.do(
+              `image-store-${scene.id}`,
+              { retries: { limit: 3, delay: "3 seconds", backoff: "exponential" }, timeout: "1 minute" },
+              async () => {
+                const imageBytes = await downloadReplicateImage(env, outputUrl);
+                const key = `${userId}/${projectId}/scenes/${scene.id}.webp`;
+                await env.ASSETS_BUCKET.put(key, imageBytes, { httpMetadata: { contentType: "image/webp" } });
+                return { ...scene, imageUrl: assetUrl(env, key), imageStatus: "ready" as const };
+              },
+            );
+          }),
+        );
+        sceneResults.push(...persisted);
+      }
 
       // ---------- 8. assemble ----------
       await step.do("assemble", async () => {
         const db = getDb(env.DB);
         let brand: BrandRow | undefined;
         if (brandId) {
-          const [row] = await db.select().from(schema.brands).where(eq(schema.brands.id, brandId)).limit(1);
+          const [row] = await db
+            .select()
+            .from(schema.brands)
+            .where(and(eq(schema.brands.id, brandId), eq(schema.brands.userId, userId)))
+            .limit(1);
           brand = row;
         }
 
@@ -279,6 +326,9 @@ ${listForPrompt}`;
             composition,
             captionConfig: composition.captions,
             generationStatus: "complete",
+            generationStage: "done",
+            generationProgress: 100,
+            generationError: null,
             updatedAt: Date.now(),
           })
           .where(eq(schema.projects.id, projectId));
@@ -319,6 +369,7 @@ ${listForPrompt}`;
           userId,
           amount: costs.total,
           description: `Refund: generation failed for project ${projectId}`,
+          operationKey: `generation:${event.instanceId}:refund`,
           projectId,
         });
       });

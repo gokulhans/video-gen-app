@@ -29,7 +29,10 @@ class HomeScreen extends ConsumerWidget {
                   const Icon(Icons.toll_outlined, size: 18),
                   const SizedBox(width: 4),
                   balanceAsync.when(
-                    data: (b) => Text('${b.tokens}', style: const TextStyle(fontWeight: FontWeight.w600)),
+                    data: (b) => Text(
+                      '${b.tokens}',
+                      style: const TextStyle(fontWeight: FontWeight.w600),
+                    ),
                     loading: () => const SizedBox(
                       width: 12,
                       height: 12,
@@ -61,8 +64,12 @@ class HomeScreen extends ConsumerWidget {
                 builder: (context, constraints) => SingleChildScrollView(
                   physics: const AlwaysScrollableScrollPhysics(),
                   child: ConstrainedBox(
-                    constraints: BoxConstraints(minHeight: constraints.maxHeight),
-                    child: _EmptyState(onCreate: () => context.push('/create/templates')),
+                    constraints: BoxConstraints(
+                      minHeight: constraints.maxHeight,
+                    ),
+                    child: _EmptyState(
+                      onCreate: () => context.push('/create/templates'),
+                    ),
                   ),
                 ),
               );
@@ -101,7 +108,10 @@ class HomeScreen extends ConsumerWidget {
                       children: [
                         const Icon(Icons.error_outline, size: 48),
                         const SizedBox(height: 12),
-                        Text('Could not load your videos\n$error', textAlign: TextAlign.center),
+                        Text(
+                          'Could not load your videos\n$error',
+                          textAlign: TextAlign.center,
+                        ),
                         const SizedBox(height: 12),
                         FilledButton(
                           onPressed: () => ref.invalidate(projectListProvider),
@@ -140,7 +150,10 @@ class _EmptyState extends StatelessWidget {
           children: [
             const Icon(Icons.video_camera_back_outlined, size: 72),
             const SizedBox(height: 16),
-            Text('No videos yet', style: Theme.of(context).textTheme.titleLarge),
+            Text(
+              'No videos yet',
+              style: Theme.of(context).textTheme.titleLarge,
+            ),
             const SizedBox(height: 8),
             Text(
               'Tap "New video" to generate your first AI video from a topic.',

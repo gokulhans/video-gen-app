@@ -14,6 +14,14 @@ import templatesRoute from "./routes/templates.js";
 
 const app = new Hono<AppBindings>();
 
+app.use("*", async (c, next) => {
+	await next();
+	c.header("content-security-policy", "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' https:; frame-ancestors 'none'; base-uri 'self'; object-src 'none'");
+	c.header("x-content-type-options", "nosniff");
+	c.header("referrer-policy", "no-referrer");
+	c.header("permissions-policy", "camera=(), microphone=(), geolocation=()");
+});
+
 // Public — bootstraps the login screen with the main api's auth URL.
 app.route("/api/admin/config", configRoute);
 

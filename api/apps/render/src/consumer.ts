@@ -18,7 +18,7 @@
  * `max_retries` + `dead_letter_queue` (render-dlq) catch poison messages that
  * can't even be parsed.
  */
-import { eq, sql } from "drizzle-orm";
+import { and, eq, isNull, sql } from "drizzle-orm";
 import { getDb } from "@app/db";
 import * as schema from "@app/db/schema";
 import { nanoid } from "nanoid";
@@ -88,7 +88,7 @@ async function processMessage(message: Message<RenderQueueMessage>, env: Env): P
 
 	// ---------- Phase B: render (committed — no retry on failure) ----------
 	try {
-		const outputKey = `renders/${userId}/${jobId}.mp4`;
+		const outputKey = `${userId}/renders/${jobId}.mp4`;
 		const renderRequest = RenderRequest.parse({ jobId, composition, resolution, outputKey });
 
 		const container = env.RENDERER.getByName(jobId) as unknown as RendererContainer & {
@@ -193,10 +193,12 @@ async function onRenderSuccess(
 ): Promise<void> {
 	const { jobId, projectId, userId } = job;
 
-	await db
+	const result = await db
 		.update(schema.renderJobs)
 		.set({ status: "completed", progress: 100, videoUrl, error: null, updatedAt: Date.now() })
-		.where(eq(schema.renderJobs.id, jobId));
+		.where(and(eq(schema.renderJobs.id, jobId), sql`${schema.renderJobs.status} NOT IN ('completed', 'failed')`));
+	const changes = (result as unknown as { meta?: { changes?: number } }).meta?.changes ?? 0;
+	if (changes === 0) return;
 
 	await doFetch(env, jobId, "/progress", "POST", { status: "completed", progress: 100, videoUrl });
 
@@ -262,14 +264,20 @@ async function finalizeFailure(
 ): Promise<void> {
 	const { jobId, projectId, userId, resolution } = job;
 
-	await db
+	const claimed = await db
 		.update(schema.renderJobs)
-		.set({ status: "failed", error: errorMessage, updatedAt: Date.now() })
-		.where(eq(schema.renderJobs.id, jobId));
+		.set({ status: "failed", error: errorMessage, refundedAt: Date.now(), updatedAt: Date.now() })
+		.where(and(
+			eq(schema.renderJobs.id, jobId),
+			isNull(schema.renderJobs.refundedAt),
+			sql`${schema.renderJobs.status} NOT IN ('completed', 'failed')`,
+		));
+	const changes = (claimed as unknown as { meta?: { changes?: number } }).meta?.changes ?? 0;
+	if (changes === 0) return;
 
 	await doFetch(env, jobId, "/progress", "POST", { status: "failed", progress: 0, error: errorMessage });
 
-	await refundRenderTokens(db, { userId, jobId, projectId, resolution });
+	await refundRenderTokens(db, { userId, jobId, projectId });
 
 	const project = await db.query.projects.findFirst({ where: eq(schema.projects.id, projectId) });
 
@@ -295,14 +303,12 @@ async function finalizeFailure(
 
 async function refundRenderTokens(
 	db: Db,
-	job: { userId: string; jobId: string; projectId: string; resolution: "720p" | "1080p" },
+	job: { userId: string; jobId: string; projectId: string },
 ): Promise<void> {
-	const { userId, jobId, projectId, resolution } = job;
-	const action = resolution === "1080p" ? "render_1080p" : "render_720p";
-
-	const costRow = await db.query.tokenCosts.findFirst({ where: eq(schema.tokenCosts.action, action) });
-	const amount = costRow?.cost ?? 0;
-	if (amount <= 0) return; // nothing to refund (cost unknown / free tier)
+	const { userId, jobId, projectId } = job;
+	const renderJob = await db.query.renderJobs.findFirst({ where: eq(schema.renderJobs.id, jobId) });
+	const amount = renderJob?.chargedTokens ?? 0;
+	if (amount <= 0) return;
 
 	// Mirrors CONTRACTS.md's db.batch requirement for token ledger mutations:
 	// credit balance + insert transaction row atomically.
@@ -318,6 +324,7 @@ async function refundRenderTokens(
 			type: "refund",
 			description: `Refund for failed render job ${jobId}`,
 			projectId,
+			operationKey: `render:${jobId}:refund`,
 			createdAt: Date.now(),
 		}),
 	]);

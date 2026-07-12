@@ -20,6 +20,7 @@ const EXT_BY_CONTENT_TYPE: Record<string, string> = {
 const UploadUrlBody = z.object({
 	kind: z.enum(["image", "audio"]),
 	contentType: z.string().min(1),
+	sizeBytes: z.number().int().positive().max(15 * 1024 * 1024).optional(),
 });
 
 // ---------- POST /upload-url ----------
@@ -32,10 +33,12 @@ assets.post("/upload-url", zValidator("json", UploadUrlBody), async (c) => {
 	const ext = EXT_BY_CONTENT_TYPE[contentType];
 	if (!ext) return Errors.badRequest(c, `Unsupported contentType: ${contentType}`);
 
-	const key = `${userId}/${kind}/${nanoid()}.${ext}`;
-	const uploadUrl = await presignPut(c.env, "uploads", key, contentType);
+	const key = `${userId}/uploads/${kind}/${nanoid()}.${ext}`;
+	const uploadUrl = await presignPut(c.env, "assets", key, contentType);
+	const encodedKey = key.split("/").map(encodeURIComponent).join("/");
+	const publicUrl = `${c.env.APP_BASE_URL.replace(/\/$/, "")}/assets/${encodedKey}`;
 
-	return okJson(c, { uploadUrl, key, bucket: "uploads", expiresInSeconds: 600 });
+	return okJson(c, { uploadUrl, key, assetKey: key, publicUrl, bucket: "assets", expiresInSeconds: 600 });
 });
 
 const DownloadUrlBody = z.object({

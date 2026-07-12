@@ -85,11 +85,11 @@ export const GenerationParams = z.object({
 	userId: z.string(),
 	templateId: z.string(),
 	brandId: z.string().nullable().default(null),
-	topic: z.string().min(3),
-	details: z.string().default(""),
-	language: z.string().default("en"),
+	topic: z.string().trim().min(3).max(500),
+	details: z.string().trim().max(4_000).default(""),
+	language: z.string().trim().min(2).max(20).default("en"),
 	durationSec: z.number().int().min(15).max(90).default(45),
-	voice: z.string().default("alloy"),
+	voice: z.string().trim().min(1).max(100).default("alloy"),
 });
 export type GenerationParams = z.infer<typeof GenerationParams>;
 
@@ -131,6 +131,15 @@ export const TOKEN_ACTIONS = [
 	"script_rewrite",
 ] as const;
 export type TokenAction = (typeof TOKEN_ACTIONS)[number];
+
+export const DEFAULT_TOKEN_COSTS: Record<TokenAction, number> = {
+	script_generation: 50,
+	voice_generation: 100,
+	image_generation: 75,
+	render_720p: 100,
+	render_1080p: 200,
+	script_rewrite: 30,
+};
 
 // ---------- API envelope ----------
 

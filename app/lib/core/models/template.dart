@@ -1,5 +1,13 @@
 import 'package:equatable/equatable.dart';
 
+String _firstLanguage(Map<String, dynamic> json) {
+  final languages = json['languages'];
+  if (languages is List && languages.isNotEmpty && languages.first is String) {
+    return languages.first as String;
+  }
+  return 'en';
+}
+
 /// Mirrors the `templates` table (packages/db/src/schema.js) as exposed by
 /// `GET /templates`.
 class VideoTemplate extends Equatable {
@@ -24,19 +32,27 @@ class VideoTemplate extends Equatable {
   final bool isActive;
 
   factory VideoTemplate.fromJson(Map<String, dynamic> json) => VideoTemplate(
-        id: json['id'] as String,
-        vertical: json['vertical'] as String? ?? 'general',
-        name: json['name'] as String? ?? '',
-        previewVideoUrl: json['previewVideoUrl'] as String?,
-        thumbnailUrl: json['thumbnailUrl'] as String?,
-        defaultDuration: (json['defaultDuration'] as num?)?.toInt() ?? 45,
-        musicTrackUrl: json['musicTrackUrl'] as String?,
-        isActive: json['isActive'] as bool? ?? true,
-      );
+    id: json['id'] as String,
+    vertical: json['vertical'] as String? ?? 'general',
+    name: json['name'] as String? ?? '',
+    previewVideoUrl: json['previewVideoUrl'] as String?,
+    thumbnailUrl: json['thumbnailUrl'] as String?,
+    defaultDuration: (json['defaultDuration'] as num?)?.toInt() ?? 45,
+    musicTrackUrl: json['musicTrackUrl'] as String?,
+    isActive: json['isActive'] as bool? ?? true,
+  );
 
   @override
-  List<Object?> get props =>
-      [id, vertical, name, previewVideoUrl, thumbnailUrl, defaultDuration, musicTrackUrl, isActive];
+  List<Object?> get props => [
+    id,
+    vertical,
+    name,
+    previewVideoUrl,
+    thumbnailUrl,
+    defaultDuration,
+    musicTrackUrl,
+    isActive,
+  ];
 }
 
 /// A selectable TTS voice (not persisted server-side as its own table; the
@@ -57,12 +73,15 @@ class VoiceOption extends Equatable {
   final String? gender;
 
   factory VoiceOption.fromJson(Map<String, dynamic> json) => VoiceOption(
-        id: json['id'] as String,
-        label: json['label'] as String? ?? json['id'] as String,
-        language: json['language'] as String? ?? 'en',
-        sampleUrl: json['sampleUrl'] as String?,
-        gender: json['gender'] as String?,
-      );
+    id: json['id'] as String,
+    label:
+        json['label'] as String? ??
+        json['name'] as String? ??
+        json['id'] as String,
+    language: json['language'] as String? ?? _firstLanguage(json),
+    sampleUrl: json['sampleUrl'] as String?,
+    gender: json['gender'] as String?,
+  );
 
   @override
   List<Object?> get props => [id, label, language, sampleUrl, gender];

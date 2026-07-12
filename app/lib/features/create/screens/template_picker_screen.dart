@@ -10,7 +10,8 @@ class TemplatePickerScreen extends ConsumerStatefulWidget {
   const TemplatePickerScreen({super.key});
 
   @override
-  ConsumerState<TemplatePickerScreen> createState() => _TemplatePickerScreenState();
+  ConsumerState<TemplatePickerScreen> createState() =>
+      _TemplatePickerScreenState();
 }
 
 class _TemplatePickerScreenState extends ConsumerState<TemplatePickerScreen> {
@@ -24,7 +25,8 @@ class _TemplatePickerScreenState extends ConsumerState<TemplatePickerScreen> {
       appBar: AppBar(title: const Text('Choose a template')),
       body: templatesAsync.when(
         data: (templates) {
-          final verticals = templates.map((t) => t.vertical).toSet().toList()..sort();
+          final verticals = templates.map((t) => t.vertical).toSet().toList()
+            ..sort();
           final filtered = _verticalFilter == null
               ? templates
               : templates.where((t) => t.vertical == _verticalFilter).toList();
@@ -36,14 +38,18 @@ class _TemplatePickerScreenState extends ConsumerState<TemplatePickerScreen> {
                   height: 48,
                   child: ListView(
                     scrollDirection: Axis.horizontal,
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 4,
+                    ),
                     children: [
                       Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 4),
                         child: ChoiceChip(
                           label: const Text('All'),
                           selected: _verticalFilter == null,
-                          onSelected: (_) => setState(() => _verticalFilter = null),
+                          onSelected: (_) =>
+                              setState(() => _verticalFilter = null),
                         ),
                       ),
                       ...verticals.map(
@@ -52,7 +58,8 @@ class _TemplatePickerScreenState extends ConsumerState<TemplatePickerScreen> {
                           child: ChoiceChip(
                             label: Text(_titleCase(v)),
                             selected: _verticalFilter == v,
-                            onSelected: (_) => setState(() => _verticalFilter = v),
+                            onSelected: (_) =>
+                                setState(() => _verticalFilter = v),
                           ),
                         ),
                       ),
@@ -74,7 +81,9 @@ class _TemplatePickerScreenState extends ConsumerState<TemplatePickerScreen> {
                     return _TemplateTile(
                       template: template,
                       onTap: () {
-                        ref.read(createFormProvider.notifier).selectTemplate(template);
+                        ref
+                            .read(createFormProvider.notifier)
+                            .selectTemplate(template);
                         context.push('/create/topic');
                       },
                     );
@@ -89,7 +98,10 @@ class _TemplatePickerScreenState extends ConsumerState<TemplatePickerScreen> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Text('Could not load templates\n$error', textAlign: TextAlign.center),
+              Text(
+                'Could not load templates\n$error',
+                textAlign: TextAlign.center,
+              ),
               const SizedBox(height: 12),
               FilledButton(
                 onPressed: () => ref.invalidate(templatesProvider),
@@ -102,8 +114,10 @@ class _TemplatePickerScreenState extends ConsumerState<TemplatePickerScreen> {
     );
   }
 
-  String _titleCase(String value) =>
-      value.split('_').map((w) => w.isEmpty ? w : '${w[0].toUpperCase()}${w.substring(1)}').join(' ');
+  String _titleCase(String value) => value
+      .split('_')
+      .map((w) => w.isEmpty ? w : '${w[0].toUpperCase()}${w.substring(1)}')
+      .join(' ');
 }
 
 class _TemplateTile extends StatelessWidget {
@@ -156,7 +170,7 @@ class _TemplateTile extends StatelessWidget {
   }
 
   Widget _placeholder(BuildContext context) => Container(
-        color: Theme.of(context).colorScheme.surfaceContainerHighest,
-        child: const Icon(Icons.movie_creation_outlined, size: 40),
-      );
+    color: Theme.of(context).colorScheme.surfaceContainerHighest,
+    child: const Icon(Icons.movie_creation_outlined, size: 40),
+  );
 }

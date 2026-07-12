@@ -7,6 +7,7 @@ export interface Env {
   GENERATION_PIPELINE: Workflow;
   REGEN_IMAGE: Workflow;
   REGEN_VOICE: Workflow;
+  REWRITE_SCRIPT: Workflow;
 
   AI_GATEWAY_BASE_URL: string;
   APP_BASE_URL: string;
@@ -20,5 +21,6 @@ export interface Env {
 /** Public URL for an object stored in ASSETS_BUCKET. Assumes the api worker exposes
  *  an asset-serving route (see CONTRACTS.md "assets" surface) at `${APP_BASE_URL}/assets/:key`. */
 export function assetUrl(env: Env, key: string): string {
-  return `${env.APP_BASE_URL}/assets/${key}`;
+  const encodedKey = key.split("/").map(encodeURIComponent).join("/");
+  return `${env.APP_BASE_URL.replace(/\/$/, "")}/assets/${encodedKey}`;
 }

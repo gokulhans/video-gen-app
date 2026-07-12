@@ -3,10 +3,13 @@
   "name": "render",
   "account_id": "58f07fb13c26e83dd6109d957083478d",
   "main": "src/index.ts",
-  "compatibility_date": "2026-01-10",
+  "compatibility_date": "2026-07-12",
+  "workers_dev": false,
   "compatibility_flags": ["nodejs_compat"],
   "observability": {
-    "enabled": true
+    "enabled": true,
+    "logs": { "head_sampling_rate": 1 },
+    "traces": { "enabled": true, "head_sampling_rate": 0.05 }
   },
 
   // Stuck-job reaper (plan §8 Phase 3): every 10 minutes
@@ -19,7 +22,8 @@
     {
       "binding": "DB",
       "database_name": "ai-video-db",
-      "database_id": "42aede4d-4f0c-41da-86d0-4a2bce18d83a"
+      "database_id": "42aede4d-4f0c-41da-86d0-4a2bce18d83a",
+      "migrations_dir": "../../packages/db/migrations"
     }
   ],
 

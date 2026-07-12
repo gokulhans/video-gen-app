@@ -32,7 +32,7 @@ class TokenRepository {
   }) {
     return _api.get<CostEstimate>(
       '/tokens/cost-estimate',
-      query: {'templateId': templateId, 'duration': durationSec},
+      query: {'templateId': templateId, 'durationSec': durationSec},
       parser: (json) => CostEstimate.fromJson(json as Map<String, dynamic>),
     );
   }
@@ -64,7 +64,9 @@ final tokenRepositoryProvider = Provider<TokenRepository>((ref) {
   return TokenRepository(ref.watch(apiClientProvider));
 });
 
-final tokenBalanceProvider = FutureProvider.autoDispose<TokenBalance>((ref) async {
+final tokenBalanceProvider = FutureProvider.autoDispose<TokenBalance>((
+  ref,
+) async {
   final repo = ref.watch(tokenRepositoryProvider);
   return repo.getBalance();
 });

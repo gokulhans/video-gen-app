@@ -1,13 +1,13 @@
 import { WorkflowEntrypoint, WorkflowStep, WorkflowEvent } from "cloudflare:workers";
 import { NonRetryableError } from "cloudflare:workflows";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 import { getDb, schema } from "@app/db";
 import { ProjectComposition, Scene } from "@app/shared";
 import type { Env } from "../env.js";
 import { assetUrl } from "../env.js";
 import { deductTokens, getTokenCost, refundTokens } from "../tokens.js";
-import { replicateGenerateImage } from "../providers/replicate.js";
+import { createFluxPrediction, downloadReplicateImage, waitForFluxPrediction } from "../providers/replicate.js";
 
 export const RegenerateSceneImageParams = z.object({
   projectId: z.string(),
@@ -30,6 +30,7 @@ export class RegenerateSceneImage extends WorkflowEntrypoint<Env, RegenerateScen
         amount: cost,
         type: "image_generation",
         description: `Regenerate scene image ${sceneId} for project ${projectId}`,
+        operationKey: `regen-image:${event.instanceId}:debit`,
         projectId,
       });
       if (!result.ok) {
@@ -42,12 +43,13 @@ export class RegenerateSceneImage extends WorkflowEntrypoint<Env, RegenerateScen
     });
 
     try {
-      const { updatedScene, composition } = await step.do(
-        "regenerate-image",
-        { retries: { limit: 3, delay: "10 seconds", backoff: "exponential" }, timeout: "3 minutes" },
-        async () => {
+      const source = await step.do("load-scene", async () => {
           const db = getDb(env.DB);
-          const [project] = await db.select().from(schema.projects).where(eq(schema.projects.id, projectId)).limit(1);
+          const [project] = await db
+            .select()
+            .from(schema.projects)
+            .where(and(eq(schema.projects.id, projectId), eq(schema.projects.userId, userId)))
+            .limit(1);
           if (!project) throw new NonRetryableError(`Project ${projectId} not found`, "ProjectNotFound");
 
           const scenes = (project.scenes as Scene[] | null) ?? [];
@@ -56,11 +58,42 @@ export class RegenerateSceneImage extends WorkflowEntrypoint<Env, RegenerateScen
 
           const scene = scenes[idx];
           const prompt = newPrompt || scene.imagePrompt;
-          const imageBytes = await replicateGenerateImage(env, { prompt, aspectRatio: (project.ratio as "9:16" | "1:1" | "16:9") ?? "9:16" });
+          return { scene, prompt, ratio: (project.ratio as "9:16" | "1:1" | "16:9") ?? "9:16" };
+      });
+
+      const prediction = await step.do(
+        "create-image-prediction",
+        { retries: { limit: 0, delay: "1 second" }, timeout: "30 seconds" },
+        () => createFluxPrediction(env, { prompt: source.prompt, aspectRatio: source.ratio }),
+      );
+      const outputUrl = await step.do(
+        "wait-image-prediction",
+        { retries: { limit: 3, delay: "5 seconds", backoff: "exponential" }, timeout: "2 minutes" },
+        () => waitForFluxPrediction(env, prediction),
+      );
+      const key = `${userId}/${projectId}/scenes/${sceneId}.webp`;
+      await step.do(
+        "store-image",
+        { retries: { limit: 3, delay: "3 seconds", backoff: "exponential" }, timeout: "1 minute" },
+        async () => {
+          const imageBytes = await downloadReplicateImage(env, outputUrl);
           const key = `${userId}/${projectId}/scenes/${sceneId}.webp`;
           await env.ASSETS_BUCKET.put(key, imageBytes, { httpMetadata: { contentType: "image/webp" } });
+        },
+      );
 
-          const newScene: Scene = { ...scene, imagePrompt: prompt, imageUrl: assetUrl(env, key), imageStatus: "ready" };
+      const { updatedScene, composition } = await step.do("commit-image", async () => {
+          const db = getDb(env.DB);
+          const [project] = await db
+            .select()
+            .from(schema.projects)
+            .where(and(eq(schema.projects.id, projectId), eq(schema.projects.userId, userId)))
+            .limit(1);
+          if (!project) throw new NonRetryableError(`Project ${projectId} not found`, "ProjectNotFound");
+          const scenes = (project.scenes as Scene[] | null) ?? [];
+          const idx = scenes.findIndex((s) => s.id === sceneId);
+          if (idx === -1) throw new NonRetryableError(`Scene ${sceneId} not found in project ${projectId}`, "SceneNotFound");
+          const newScene: Scene = { ...scenes[idx], imagePrompt: source.prompt, imageUrl: assetUrl(env, key), imageStatus: "ready" };
           const newScenes = [...scenes];
           newScenes[idx] = newScene;
 
@@ -79,8 +112,7 @@ export class RegenerateSceneImage extends WorkflowEntrypoint<Env, RegenerateScen
             .where(eq(schema.projects.id, projectId));
 
           return { updatedScene: newScene, composition };
-        }
-      );
+      });
 
       return { projectId, scene: updatedScene, composition };
     } catch (err) {
@@ -90,6 +122,7 @@ export class RegenerateSceneImage extends WorkflowEntrypoint<Env, RegenerateScen
           userId,
           amount: imageCost,
           description: `Refund: scene image regeneration failed for project ${projectId}`,
+          operationKey: `regen-image:${event.instanceId}:refund`,
           projectId,
         });
       });

@@ -21,7 +21,8 @@ class EditorScreen extends ConsumerStatefulWidget {
   ConsumerState<EditorScreen> createState() => _EditorScreenState();
 }
 
-class _EditorScreenState extends ConsumerState<EditorScreen> with SingleTickerProviderStateMixin {
+class _EditorScreenState extends ConsumerState<EditorScreen>
+    with SingleTickerProviderStateMixin {
   late final TabController _tabController;
 
   @override
@@ -38,8 +39,12 @@ class _EditorScreenState extends ConsumerState<EditorScreen> with SingleTickerPr
 
   @override
   Widget build(BuildContext context) {
-    final compositionAsync = ref.watch(compositionControllerProvider(widget.projectId));
-    final controller = ref.read(compositionControllerProvider(widget.projectId).notifier);
+    final compositionAsync = ref.watch(
+      compositionControllerProvider(widget.projectId),
+    );
+    final controller = ref.read(
+      compositionControllerProvider(widget.projectId).notifier,
+    );
 
     return Scaffold(
       appBar: AppBar(
@@ -78,10 +83,15 @@ class _EditorScreenState extends ConsumerState<EditorScreen> with SingleTickerPr
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Text('Could not load project\n$error', textAlign: TextAlign.center),
+              Text(
+                'Could not load project\n$error',
+                textAlign: TextAlign.center,
+              ),
               const SizedBox(height: 12),
               FilledButton(
-                onPressed: () => ref.invalidate(compositionControllerProvider(widget.projectId)),
+                onPressed: () => ref.invalidate(
+                  compositionControllerProvider(widget.projectId),
+                ),
                 child: const Text('Retry'),
               ),
             ],
@@ -93,8 +103,22 @@ class _EditorScreenState extends ConsumerState<EditorScreen> with SingleTickerPr
           padding: const EdgeInsets.all(12),
           child: FilledButton.icon(
             onPressed: () async {
-              await controller.saveNow();
-              if (context.mounted) context.push('/render/${widget.projectId}');
+              try {
+                await controller.saveNow();
+                if (context.mounted) {
+                  context.push('/render/${widget.projectId}');
+                }
+              } catch (_) {
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text(
+                        'Could not save your latest edits. Please try again.',
+                      ),
+                    ),
+                  );
+                }
+              }
             },
             icon: const Icon(Icons.movie_creation_outlined),
             label: const Text('Continue to render'),

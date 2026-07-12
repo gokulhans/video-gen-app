@@ -15,6 +15,7 @@ export interface Env {
 	GENERATION_PIPELINE: Workflow;
 	REGEN_IMAGE: Workflow;
 	REGEN_VOICE: Workflow;
+	REWRITE_SCRIPT: Workflow;
 	RENDER_SERVICE: Fetcher;
 
 	// Secrets (CONTRACTS.md)
@@ -34,10 +35,12 @@ export interface Env {
 	R2_SECRET_ACCESS_KEY: string;
 	GOOGLE_PLAY_SERVICE_ACCOUNT_JSON: string;
 	GOOGLE_PLAY_PACKAGE_NAME: string;
+	PLAY_TOKEN_PACKS_JSON: string;
 
 	// Env vars (CONTRACTS.md)
 	AI_GATEWAY_BASE_URL: string;
 	APP_BASE_URL: string;
+	ALLOWED_ORIGINS?: string;
 }
 
 export type Variables = {

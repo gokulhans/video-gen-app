@@ -35,7 +35,9 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
   }
 
   Future<void> _submitGoogle() async {
-    final user = await ref.read(authControllerProvider.notifier).signInWithGoogle();
+    final user = await ref
+        .read(authControllerProvider.notifier)
+        .signInWithGoogle();
     if (user != null && mounted) {
       context.go('/home');
     }
@@ -47,9 +49,9 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
 
     ref.listen(authControllerProvider, (previous, next) {
       if (next.status == AuthActionStatus.error && next.errorMessage != null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(next.errorMessage!)),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(next.errorMessage!)));
       }
     });
 
@@ -63,7 +65,10 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 const SizedBox(height: 24),
-                Text('Welcome back', style: Theme.of(context).textTheme.headlineMedium),
+                Text(
+                  'Welcome back',
+                  style: Theme.of(context).textTheme.headlineMedium,
+                ),
                 const SizedBox(height: 8),
                 Text(
                   'Sign in to keep making AI videos',
@@ -73,9 +78,13 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
                 TextFormField(
                   controller: _emailController,
                   keyboardType: TextInputType.emailAddress,
-                  decoration: const InputDecoration(labelText: 'Email', prefixIcon: Icon(Icons.email_outlined)),
+                  decoration: const InputDecoration(
+                    labelText: 'Email',
+                    prefixIcon: Icon(Icons.email_outlined),
+                  ),
                   validator: (value) {
-                    if (value == null || !value.contains('@')) return 'Enter a valid email';
+                    if (value == null || !value.contains('@'))
+                      return 'Enter a valid email';
                     return null;
                   },
                 ),
@@ -87,12 +96,18 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
                     labelText: 'Password',
                     prefixIcon: const Icon(Icons.lock_outline),
                     suffixIcon: IconButton(
-                      icon: Icon(_obscurePassword ? Icons.visibility_off : Icons.visibility),
-                      onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                      icon: Icon(
+                        _obscurePassword
+                            ? Icons.visibility_off
+                            : Icons.visibility,
+                      ),
+                      onPressed: () =>
+                          setState(() => _obscurePassword = !_obscurePassword),
                     ),
                   ),
                   validator: (value) {
-                    if (value == null || value.length < 8) return 'Minimum 8 characters';
+                    if (value == null || value.length < 8)
+                      return 'Minimum 8 characters';
                     return null;
                   },
                 ),
@@ -111,7 +126,10 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
                 Row(
                   children: const [
                     Expanded(child: Divider()),
-                    Padding(padding: EdgeInsets.symmetric(horizontal: 12), child: Text('or')),
+                    Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 12),
+                      child: Text('or'),
+                    ),
                     Expanded(child: Divider()),
                   ],
                 ),

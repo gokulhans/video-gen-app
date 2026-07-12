@@ -1,18 +1,24 @@
 import 'package:equatable/equatable.dart';
 
+const _unset = Object();
+
 /// Mirrors `WordTimestamp` in packages/shared/src/index.ts.
 class WordTimestamp extends Equatable {
-  const WordTimestamp({required this.word, required this.start, required this.end});
+  const WordTimestamp({
+    required this.word,
+    required this.start,
+    required this.end,
+  });
 
   final String word;
   final double start; // seconds
   final double end;
 
   factory WordTimestamp.fromJson(Map<String, dynamic> json) => WordTimestamp(
-        word: json['word'] as String,
-        start: (json['start'] as num).toDouble(),
-        end: (json['end'] as num).toDouble(),
-      );
+    word: json['word'] as String,
+    start: (json['start'] as num).toDouble(),
+    end: (json['end'] as num).toDouble(),
+  );
 
   Map<String, dynamic> toJson() => {'word': word, 'start': start, 'end': end};
 
@@ -24,20 +30,20 @@ enum SceneEffectType { zoomIn, zoomOut, panLeft, panRight, none }
 
 extension SceneEffectTypeX on SceneEffectType {
   String get wireValue => switch (this) {
-        SceneEffectType.zoomIn => 'zoom_in',
-        SceneEffectType.zoomOut => 'zoom_out',
-        SceneEffectType.panLeft => 'pan_left',
-        SceneEffectType.panRight => 'pan_right',
-        SceneEffectType.none => 'none',
-      };
+    SceneEffectType.zoomIn => 'zoom_in',
+    SceneEffectType.zoomOut => 'zoom_out',
+    SceneEffectType.panLeft => 'pan_left',
+    SceneEffectType.panRight => 'pan_right',
+    SceneEffectType.none => 'none',
+  };
 
   static SceneEffectType fromWire(String? value) => switch (value) {
-        'zoom_in' => SceneEffectType.zoomIn,
-        'zoom_out' => SceneEffectType.zoomOut,
-        'pan_left' => SceneEffectType.panLeft,
-        'pan_right' => SceneEffectType.panRight,
-        _ => SceneEffectType.none,
-      };
+    'zoom_in' => SceneEffectType.zoomIn,
+    'zoom_out' => SceneEffectType.zoomOut,
+    'pan_left' => SceneEffectType.panLeft,
+    'pan_right' => SceneEffectType.panRight,
+    _ => SceneEffectType.none,
+  };
 }
 
 /// Mirrors `SceneEffect`.
@@ -55,9 +61,13 @@ class SceneEffect extends Equatable {
     );
   }
 
-  Map<String, dynamic> toJson() => {'type': type.wireValue, 'intensity': intensity};
+  Map<String, dynamic> toJson() => {
+    'type': type.wireValue,
+    'intensity': intensity,
+  };
 
-  SceneEffect copyWith({SceneEffectType? type, double? intensity}) => SceneEffect(
+  SceneEffect copyWith({SceneEffectType? type, double? intensity}) =>
+      SceneEffect(
         type: type ?? this.type,
         intensity: intensity ?? this.intensity,
       );
@@ -71,11 +81,11 @@ enum ImageStatus { pending, generating, ready, failed }
 extension ImageStatusX on ImageStatus {
   String get wireValue => name;
   static ImageStatus fromWire(String? value) => switch (value) {
-        'generating' => ImageStatus.generating,
-        'ready' => ImageStatus.ready,
-        'failed' => ImageStatus.failed,
-        _ => ImageStatus.pending,
-      };
+    'generating' => ImageStatus.generating,
+    'ready' => ImageStatus.ready,
+    'failed' => ImageStatus.failed,
+    _ => ImageStatus.pending,
+  };
 }
 
 enum SceneTransition { none, fade, slide, wipe }
@@ -83,11 +93,11 @@ enum SceneTransition { none, fade, slide, wipe }
 extension SceneTransitionX on SceneTransition {
   String get wireValue => name;
   static SceneTransition fromWire(String? value) => switch (value) {
-        'fade' => SceneTransition.fade,
-        'slide' => SceneTransition.slide,
-        'wipe' => SceneTransition.wipe,
-        _ => SceneTransition.none,
-      };
+    'fade' => SceneTransition.fade,
+    'slide' => SceneTransition.slide,
+    'wipe' => SceneTransition.wipe,
+    _ => SceneTransition.none,
+  };
 }
 
 /// Mirrors `Scene` in packages/shared/src/index.ts.
@@ -117,57 +127,66 @@ class Scene extends Equatable {
   final SceneTransition transition;
 
   factory Scene.fromJson(Map<String, dynamic> json) => Scene(
-        id: json['id'] as String,
-        order: (json['order'] as num).toInt(),
-        text: json['text'] as String? ?? '',
-        start: (json['start'] as num?)?.toDouble() ?? 0,
-        end: (json['end'] as num?)?.toDouble() ?? 0,
-        imagePrompt: json['imagePrompt'] as String? ?? '',
-        imageUrl: json['imageUrl'] as String?,
-        imageStatus: ImageStatusX.fromWire(json['imageStatus'] as String?),
-        effect: SceneEffect.fromJson(json['effect'] as Map<String, dynamic>?),
-        transition: SceneTransitionX.fromWire(json['transition'] as String?),
-      );
+    id: json['id'] as String,
+    order: (json['order'] as num).toInt(),
+    text: json['text'] as String? ?? '',
+    start: (json['start'] as num?)?.toDouble() ?? 0,
+    end: (json['end'] as num?)?.toDouble() ?? 0,
+    imagePrompt: json['imagePrompt'] as String? ?? '',
+    imageUrl: json['imageUrl'] as String?,
+    imageStatus: ImageStatusX.fromWire(json['imageStatus'] as String?),
+    effect: SceneEffect.fromJson(json['effect'] as Map<String, dynamic>?),
+    transition: SceneTransitionX.fromWire(json['transition'] as String?),
+  );
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'order': order,
-        'text': text,
-        'start': start,
-        'end': end,
-        'imagePrompt': imagePrompt,
-        'imageUrl': imageUrl,
-        'imageStatus': imageStatus.wireValue,
-        'effect': effect.toJson(),
-        'transition': transition.wireValue,
-      };
+    'id': id,
+    'order': order,
+    'text': text,
+    'start': start,
+    'end': end,
+    'imagePrompt': imagePrompt,
+    'imageUrl': imageUrl,
+    'imageStatus': imageStatus.wireValue,
+    'effect': effect.toJson(),
+    'transition': transition.wireValue,
+  };
 
   Scene copyWith({
     String? text,
     double? start,
     double? end,
     String? imagePrompt,
-    String? imageUrl,
+    Object? imageUrl = _unset,
     ImageStatus? imageStatus,
     SceneEffect? effect,
     SceneTransition? transition,
-  }) =>
-      Scene(
-        id: id,
-        order: order,
-        text: text ?? this.text,
-        start: start ?? this.start,
-        end: end ?? this.end,
-        imagePrompt: imagePrompt ?? this.imagePrompt,
-        imageUrl: imageUrl ?? this.imageUrl,
-        imageStatus: imageStatus ?? this.imageStatus,
-        effect: effect ?? this.effect,
-        transition: transition ?? this.transition,
-      );
+  }) => Scene(
+    id: id,
+    order: order,
+    text: text ?? this.text,
+    start: start ?? this.start,
+    end: end ?? this.end,
+    imagePrompt: imagePrompt ?? this.imagePrompt,
+    imageUrl: identical(imageUrl, _unset) ? this.imageUrl : imageUrl as String?,
+    imageStatus: imageStatus ?? this.imageStatus,
+    effect: effect ?? this.effect,
+    transition: transition ?? this.transition,
+  );
 
   @override
-  List<Object?> get props =>
-      [id, order, text, start, end, imagePrompt, imageUrl, imageStatus, effect, transition];
+  List<Object?> get props => [
+    id,
+    order,
+    text,
+    start,
+    end,
+    imagePrompt,
+    imageUrl,
+    imageStatus,
+    effect,
+    transition,
+  ];
 }
 
 enum CaptionPreset { tiktok, clean, bold, karaoke }
@@ -175,18 +194,18 @@ enum CaptionPreset { tiktok, clean, bold, karaoke }
 extension CaptionPresetX on CaptionPreset {
   String get wireValue => name;
   static CaptionPreset fromWire(String? value) => switch (value) {
-        'clean' => CaptionPreset.clean,
-        'bold' => CaptionPreset.bold,
-        'karaoke' => CaptionPreset.karaoke,
-        _ => CaptionPreset.tiktok,
-      };
+    'clean' => CaptionPreset.clean,
+    'bold' => CaptionPreset.bold,
+    'karaoke' => CaptionPreset.karaoke,
+    _ => CaptionPreset.tiktok,
+  };
 
   String get label => switch (this) {
-        CaptionPreset.tiktok => 'TikTok',
-        CaptionPreset.clean => 'Clean',
-        CaptionPreset.bold => 'Bold',
-        CaptionPreset.karaoke => 'Karaoke',
-      };
+    CaptionPreset.tiktok => 'TikTok',
+    CaptionPreset.clean => 'Clean',
+    CaptionPreset.bold => 'Bold',
+    CaptionPreset.karaoke => 'Karaoke',
+  };
 }
 
 enum CaptionPosition { top, center, bottom }
@@ -194,10 +213,10 @@ enum CaptionPosition { top, center, bottom }
 extension CaptionPositionX on CaptionPosition {
   String get wireValue => name;
   static CaptionPosition fromWire(String? value) => switch (value) {
-        'top' => CaptionPosition.top,
-        'center' => CaptionPosition.center,
-        _ => CaptionPosition.bottom,
-      };
+    'top' => CaptionPosition.top,
+    'center' => CaptionPosition.center,
+    _ => CaptionPosition.bottom,
+  };
 }
 
 /// Mirrors `CaptionConfig`.
@@ -231,13 +250,13 @@ class CaptionConfig extends Equatable {
   }
 
   Map<String, dynamic> toJson() => {
-        'enabled': enabled,
-        'preset': preset.wireValue,
-        'position': position.wireValue,
-        'primaryColor': primaryColor,
-        'highlightColor': highlightColor,
-        'fontSize': fontSize,
-      };
+    'enabled': enabled,
+    'preset': preset.wireValue,
+    'position': position.wireValue,
+    'primaryColor': primaryColor,
+    'highlightColor': highlightColor,
+    'fontSize': fontSize,
+  };
 
   CaptionConfig copyWith({
     bool? enabled,
@@ -246,39 +265,44 @@ class CaptionConfig extends Equatable {
     String? primaryColor,
     String? highlightColor,
     double? fontSize,
-  }) =>
-      CaptionConfig(
-        enabled: enabled ?? this.enabled,
-        preset: preset ?? this.preset,
-        position: position ?? this.position,
-        primaryColor: primaryColor ?? this.primaryColor,
-        highlightColor: highlightColor ?? this.highlightColor,
-        fontSize: fontSize ?? this.fontSize,
-      );
+  }) => CaptionConfig(
+    enabled: enabled ?? this.enabled,
+    preset: preset ?? this.preset,
+    position: position ?? this.position,
+    primaryColor: primaryColor ?? this.primaryColor,
+    highlightColor: highlightColor ?? this.highlightColor,
+    fontSize: fontSize ?? this.fontSize,
+  );
 
   @override
-  List<Object?> get props =>
-      [enabled, preset, position, primaryColor, highlightColor, fontSize];
+  List<Object?> get props => [
+    enabled,
+    preset,
+    position,
+    primaryColor,
+    highlightColor,
+    fontSize,
+  ];
 }
 
 enum LogoPosition { topLeft, topRight, bottomLeft, bottomRight, none }
 
 extension LogoPositionX on LogoPosition {
   String get wireValue => switch (this) {
-        LogoPosition.topLeft => 'top_left',
-        LogoPosition.topRight => 'top_right',
-        LogoPosition.bottomLeft => 'bottom_left',
-        LogoPosition.bottomRight => 'bottom_right',
-        LogoPosition.none => 'none',
-      };
+    LogoPosition.topLeft => 'top_left',
+    LogoPosition.topRight => 'top_right',
+    LogoPosition.bottomLeft => 'bottom_left',
+    LogoPosition.bottomRight => 'bottom_right',
+    LogoPosition.none => 'none',
+  };
 
   static LogoPosition fromWire(String? value) => switch (value) {
-        'top_left' => LogoPosition.topLeft,
-        'bottom_left' => LogoPosition.bottomLeft,
-        'bottom_right' => LogoPosition.bottomRight,
-        'none' => LogoPosition.none,
-        _ => LogoPosition.topRight,
-      };
+    'top_left' => LogoPosition.topLeft,
+    'bottom_left' => LogoPosition.bottomLeft,
+    'bottom_right' => LogoPosition.bottomRight,
+    'none' => LogoPosition.none,
+    _ => LogoPosition.topRight,
+  };
 }
 
 /// Mirrors `BrandConfig` (the composition-embedded brand snapshot).
@@ -312,50 +336,57 @@ class BrandConfig extends Equatable {
   }
 
   Map<String, dynamic> toJson() => {
-        'logoUrl': logoUrl,
-        'logoPosition': logoPosition.wireValue,
-        'primaryColor': primaryColor,
-        'phone': phone,
-        'website': website,
-        'watermark': watermark,
-      };
+    'logoUrl': logoUrl,
+    'logoPosition': logoPosition.wireValue,
+    'primaryColor': primaryColor,
+    'phone': phone,
+    'website': website,
+    'watermark': watermark,
+  };
 
   BrandConfig copyWith({
-    String? logoUrl,
+    Object? logoUrl = _unset,
     LogoPosition? logoPosition,
-    String? primaryColor,
-    String? phone,
-    String? website,
+    Object? primaryColor = _unset,
+    Object? phone = _unset,
+    Object? website = _unset,
     bool? watermark,
-  }) =>
-      BrandConfig(
-        logoUrl: logoUrl ?? this.logoUrl,
-        logoPosition: logoPosition ?? this.logoPosition,
-        primaryColor: primaryColor ?? this.primaryColor,
-        phone: phone ?? this.phone,
-        website: website ?? this.website,
-        watermark: watermark ?? this.watermark,
-      );
+  }) => BrandConfig(
+    logoUrl: identical(logoUrl, _unset) ? this.logoUrl : logoUrl as String?,
+    logoPosition: logoPosition ?? this.logoPosition,
+    primaryColor: identical(primaryColor, _unset)
+        ? this.primaryColor
+        : primaryColor as String?,
+    phone: identical(phone, _unset) ? this.phone : phone as String?,
+    website: identical(website, _unset) ? this.website : website as String?,
+    watermark: watermark ?? this.watermark,
+  );
 
   @override
-  List<Object?> get props =>
-      [logoUrl, logoPosition, primaryColor, phone, website, watermark];
+  List<Object?> get props => [
+    logoUrl,
+    logoPosition,
+    primaryColor,
+    phone,
+    website,
+    watermark,
+  ];
 }
 
 enum VideoRatio { r9x16, r1x1, r16x9 }
 
 extension VideoRatioX on VideoRatio {
   String get wireValue => switch (this) {
-        VideoRatio.r9x16 => '9:16',
-        VideoRatio.r1x1 => '1:1',
-        VideoRatio.r16x9 => '16:9',
-      };
+    VideoRatio.r9x16 => '9:16',
+    VideoRatio.r1x1 => '1:1',
+    VideoRatio.r16x9 => '16:9',
+  };
 
   static VideoRatio fromWire(String? value) => switch (value) {
-        '1:1' => VideoRatio.r1x1,
-        '16:9' => VideoRatio.r16x9,
-        _ => VideoRatio.r9x16,
-      };
+    '1:1' => VideoRatio.r1x1,
+    '16:9' => VideoRatio.r16x9,
+    _ => VideoRatio.r9x16,
+  };
 }
 
 /// Mirrors `ProjectComposition` — the editing document for a project.
@@ -390,7 +421,8 @@ class ProjectComposition extends Equatable {
   final CaptionConfig captions;
   final BrandConfig brand;
 
-  factory ProjectComposition.fromJson(Map<String, dynamic> json) => ProjectComposition(
+  factory ProjectComposition.fromJson(Map<String, dynamic> json) =>
+      ProjectComposition(
         schemaVersion: (json['schemaVersion'] as num?)?.toInt() ?? 1,
         ratio: VideoRatioX.fromWire(json['ratio'] as String?),
         durationSec: (json['durationSec'] as num?)?.toDouble() ?? 45,
@@ -406,25 +438,27 @@ class ProjectComposition extends Equatable {
         words: (json['words'] as List<dynamic>? ?? [])
             .map((e) => WordTimestamp.fromJson(e as Map<String, dynamic>))
             .toList(),
-        captions: CaptionConfig.fromJson(json['captions'] as Map<String, dynamic>?),
+        captions: CaptionConfig.fromJson(
+          json['captions'] as Map<String, dynamic>?,
+        ),
         brand: BrandConfig.fromJson(json['brand'] as Map<String, dynamic>?),
       );
 
   Map<String, dynamic> toJson() => {
-        'schemaVersion': schemaVersion,
-        'ratio': ratio.wireValue,
-        'durationSec': durationSec,
-        'language': language,
-        'script': script,
-        'voice': voice,
-        'voiceoverUrl': voiceoverUrl,
-        'musicUrl': musicUrl,
-        'musicVolume': musicVolume,
-        'scenes': scenes.map((s) => s.toJson()).toList(),
-        'words': words.map((w) => w.toJson()).toList(),
-        'captions': captions.toJson(),
-        'brand': brand.toJson(),
-      };
+    'schemaVersion': schemaVersion,
+    'ratio': ratio.wireValue,
+    'durationSec': durationSec,
+    'language': language,
+    'script': script,
+    'voice': voice,
+    'voiceoverUrl': voiceoverUrl,
+    'musicUrl': musicUrl,
+    'musicVolume': musicVolume,
+    'scenes': scenes.map((s) => s.toJson()).toList(),
+    'words': words.map((w) => w.toJson()).toList(),
+    'captions': captions.toJson(),
+    'brand': brand.toJson(),
+  };
 
   ProjectComposition copyWith({
     VideoRatio? ratio,
@@ -432,46 +466,47 @@ class ProjectComposition extends Equatable {
     String? language,
     String? script,
     String? voice,
-    String? voiceoverUrl,
-    String? musicUrl,
+    Object? voiceoverUrl = _unset,
+    Object? musicUrl = _unset,
     double? musicVolume,
     List<Scene>? scenes,
     List<WordTimestamp>? words,
     CaptionConfig? captions,
     BrandConfig? brand,
-  }) =>
-      ProjectComposition(
-        schemaVersion: schemaVersion,
-        ratio: ratio ?? this.ratio,
-        durationSec: durationSec ?? this.durationSec,
-        language: language ?? this.language,
-        script: script ?? this.script,
-        voice: voice ?? this.voice,
-        voiceoverUrl: voiceoverUrl ?? this.voiceoverUrl,
-        musicUrl: musicUrl ?? this.musicUrl,
-        musicVolume: musicVolume ?? this.musicVolume,
-        scenes: scenes ?? this.scenes,
-        words: words ?? this.words,
-        captions: captions ?? this.captions,
-        brand: brand ?? this.brand,
-      );
+  }) => ProjectComposition(
+    schemaVersion: schemaVersion,
+    ratio: ratio ?? this.ratio,
+    durationSec: durationSec ?? this.durationSec,
+    language: language ?? this.language,
+    script: script ?? this.script,
+    voice: voice ?? this.voice,
+    voiceoverUrl: identical(voiceoverUrl, _unset)
+        ? this.voiceoverUrl
+        : voiceoverUrl as String?,
+    musicUrl: identical(musicUrl, _unset) ? this.musicUrl : musicUrl as String?,
+    musicVolume: musicVolume ?? this.musicVolume,
+    scenes: scenes ?? this.scenes,
+    words: words ?? this.words,
+    captions: captions ?? this.captions,
+    brand: brand ?? this.brand,
+  );
 
   @override
   List<Object?> get props => [
-        schemaVersion,
-        ratio,
-        durationSec,
-        language,
-        script,
-        voice,
-        voiceoverUrl,
-        musicUrl,
-        musicVolume,
-        scenes,
-        words,
-        captions,
-        brand,
-      ];
+    schemaVersion,
+    ratio,
+    durationSec,
+    language,
+    script,
+    voice,
+    voiceoverUrl,
+    musicUrl,
+    musicVolume,
+    scenes,
+    words,
+    captions,
+    brand,
+  ];
 }
 
 /// Mirrors `GenerationParams` — the payload for `POST /projects/:id/generate`.
@@ -495,18 +530,25 @@ class GenerationParams extends Equatable {
   final String voice;
 
   Map<String, dynamic> toJson() => {
-        'templateId': templateId,
-        'brandId': brandId,
-        'topic': topic,
-        'details': details,
-        'language': language,
-        'durationSec': durationSec,
-        'voice': voice,
-      };
+    'templateId': templateId,
+    'brandId': brandId,
+    'topic': topic,
+    'details': details,
+    'language': language,
+    'durationSec': durationSec,
+    'voice': voice,
+  };
 
   @override
-  List<Object?> get props =>
-      [templateId, brandId, topic, details, language, durationSec, voice];
+  List<Object?> get props => [
+    templateId,
+    brandId,
+    topic,
+    details,
+    language,
+    durationSec,
+    voice,
+  ];
 }
 
 enum RenderStatus { queued, starting, rendering, uploading, completed, failed }
@@ -514,13 +556,13 @@ enum RenderStatus { queued, starting, rendering, uploading, completed, failed }
 extension RenderStatusX on RenderStatus {
   String get wireValue => name;
   static RenderStatus fromWire(String? value) => switch (value) {
-        'starting' => RenderStatus.starting,
-        'rendering' => RenderStatus.rendering,
-        'uploading' => RenderStatus.uploading,
-        'completed' => RenderStatus.completed,
-        'failed' => RenderStatus.failed,
-        _ => RenderStatus.queued,
-      };
+    'starting' => RenderStatus.starting,
+    'rendering' => RenderStatus.rendering,
+    'uploading' => RenderStatus.uploading,
+    'completed' => RenderStatus.completed,
+    'failed' => RenderStatus.failed,
+    _ => RenderStatus.queued,
+  };
 }
 
 /// Mirrors `RenderProgressMessage` — pushed over the RenderJobDO WebSocket
@@ -540,7 +582,8 @@ class RenderProgressMessage extends Equatable {
   final String? videoUrl;
   final String? error;
 
-  factory RenderProgressMessage.fromJson(Map<String, dynamic> json) => RenderProgressMessage(
+  factory RenderProgressMessage.fromJson(Map<String, dynamic> json) =>
+      RenderProgressMessage(
         jobId: json['jobId'] as String,
         status: RenderStatusX.fromWire(json['status'] as String?),
         progress: (json['progress'] as num?)?.toDouble() ?? 0,
@@ -557,23 +600,23 @@ enum GenerationStage { script, voice, captions, scenes, images, done, failed }
 
 extension GenerationStageX on GenerationStage {
   static GenerationStage fromWire(String? value) => switch (value) {
-        'generate-script' || 'script' => GenerationStage.script,
-        'generate-voiceover' || 'voice' => GenerationStage.voice,
-        'generate-timestamps' || 'captions' => GenerationStage.captions,
-        'build-scenes' || 'scenes' => GenerationStage.scenes,
-        'images' => GenerationStage.images,
-        'complete' || 'done' => GenerationStage.done,
-        'failed' => GenerationStage.failed,
-        _ => GenerationStage.script,
-      };
+    'generate-script' || 'script' => GenerationStage.script,
+    'generate-voiceover' || 'voice' => GenerationStage.voice,
+    'generate-timestamps' || 'captions' => GenerationStage.captions,
+    'build-scenes' || 'scenes' => GenerationStage.scenes,
+    'images' => GenerationStage.images,
+    'complete' || 'done' => GenerationStage.done,
+    'failed' => GenerationStage.failed,
+    _ => GenerationStage.script,
+  };
 
   String get label => switch (this) {
-        GenerationStage.script => 'Writing script',
-        GenerationStage.voice => 'Generating voiceover',
-        GenerationStage.captions => 'Aligning captions',
-        GenerationStage.scenes => 'Building scenes',
-        GenerationStage.images => 'Generating images',
-        GenerationStage.done => 'Done',
-        GenerationStage.failed => 'Failed',
-      };
+    GenerationStage.script => 'Writing script',
+    GenerationStage.voice => 'Generating voiceover',
+    GenerationStage.captions => 'Aligning captions',
+    GenerationStage.scenes => 'Building scenes',
+    GenerationStage.images => 'Generating images',
+    GenerationStage.done => 'Done',
+    GenerationStage.failed => 'Failed',
+  };
 }

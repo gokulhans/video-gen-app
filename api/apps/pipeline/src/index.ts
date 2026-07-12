@@ -3,6 +3,7 @@ import type { Env } from "./env.js";
 export { GenerationPipeline } from "./workflows/generation-pipeline.js";
 export { RegenerateSceneImage } from "./workflows/regenerate-scene-image.js";
 export { RegenerateVoiceover } from "./workflows/regenerate-voiceover.js";
+export { RewriteScript } from "./workflows/rewrite-script.js";
 
 /**
  * This worker exposes no public HTTP surface — it only hosts Workflow classes,

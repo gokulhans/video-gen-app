@@ -18,6 +18,7 @@ const BrandBody = z.object({
 	phone: z.string().nullable().optional(),
 	website: z.string().nullable().optional(),
 	watermark: z.boolean().optional(),
+	logoPosition: z.enum(["top_left", "top_right", "bottom_left", "bottom_right", "none"]).optional(),
 });
 
 // ---------- list (own only) ----------
@@ -65,6 +66,7 @@ brands.post("/", zValidator("json", BrandBody), async (c) => {
 		phone: body.phone ?? null,
 		website: body.website ?? null,
 		watermark: body.watermark ?? true,
+		logoPosition: body.logoPosition ?? "top_right",
 		createdAt: now,
 		updatedAt: now,
 	});

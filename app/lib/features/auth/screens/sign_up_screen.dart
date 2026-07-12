@@ -28,7 +28,9 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
-    final user = await ref.read(authControllerProvider.notifier).signUp(
+    final user = await ref
+        .read(authControllerProvider.notifier)
+        .signUp(
           _nameController.text.trim(),
           _emailController.text.trim(),
           _passwordController.text,
@@ -39,7 +41,9 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
   }
 
   Future<void> _submitGoogle() async {
-    final user = await ref.read(authControllerProvider.notifier).signInWithGoogle();
+    final user = await ref
+        .read(authControllerProvider.notifier)
+        .signInWithGoogle();
     if (user != null && mounted) {
       context.go('/onboarding');
     }
@@ -51,14 +55,16 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
 
     ref.listen(authControllerProvider, (previous, next) {
       if (next.status == AuthActionStatus.error && next.errorMessage != null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(next.errorMessage!)),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(next.errorMessage!)));
       }
     });
 
     return Scaffold(
-      appBar: AppBar(leading: BackButton(onPressed: () => context.go('/sign-in'))),
+      appBar: AppBar(
+        leading: BackButton(onPressed: () => context.go('/sign-in')),
+      ),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: 24),
@@ -67,7 +73,10 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Text('Create your account', style: Theme.of(context).textTheme.headlineMedium),
+                Text(
+                  'Create your account',
+                  style: Theme.of(context).textTheme.headlineMedium,
+                ),
                 const SizedBox(height: 8),
                 Text(
                   'Start generating scroll-stopping videos in minutes',
@@ -76,16 +85,25 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                 const SizedBox(height: 32),
                 TextFormField(
                   controller: _nameController,
-                  decoration: const InputDecoration(labelText: 'Full name', prefixIcon: Icon(Icons.person_outline)),
-                  validator: (value) => (value == null || value.trim().isEmpty) ? 'Enter your name' : null,
+                  decoration: const InputDecoration(
+                    labelText: 'Full name',
+                    prefixIcon: Icon(Icons.person_outline),
+                  ),
+                  validator: (value) => (value == null || value.trim().isEmpty)
+                      ? 'Enter your name'
+                      : null,
                 ),
                 const SizedBox(height: 16),
                 TextFormField(
                   controller: _emailController,
                   keyboardType: TextInputType.emailAddress,
-                  decoration: const InputDecoration(labelText: 'Email', prefixIcon: Icon(Icons.email_outlined)),
+                  decoration: const InputDecoration(
+                    labelText: 'Email',
+                    prefixIcon: Icon(Icons.email_outlined),
+                  ),
                   validator: (value) {
-                    if (value == null || !value.contains('@')) return 'Enter a valid email';
+                    if (value == null || !value.contains('@'))
+                      return 'Enter a valid email';
                     return null;
                   },
                 ),
@@ -97,12 +115,18 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                     labelText: 'Password',
                     prefixIcon: const Icon(Icons.lock_outline),
                     suffixIcon: IconButton(
-                      icon: Icon(_obscurePassword ? Icons.visibility_off : Icons.visibility),
-                      onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                      icon: Icon(
+                        _obscurePassword
+                            ? Icons.visibility_off
+                            : Icons.visibility,
+                      ),
+                      onPressed: () =>
+                          setState(() => _obscurePassword = !_obscurePassword),
                     ),
                   ),
                   validator: (value) {
-                    if (value == null || value.length < 8) return 'Minimum 8 characters';
+                    if (value == null || value.length < 8)
+                      return 'Minimum 8 characters';
                     return null;
                   },
                 ),
@@ -121,7 +145,10 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                 Row(
                   children: const [
                     Expanded(child: Divider()),
-                    Padding(padding: EdgeInsets.symmetric(horizontal: 12), child: Text('or')),
+                    Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 12),
+                      child: Text('or'),
+                    ),
                     Expanded(child: Divider()),
                   ],
                 ),

@@ -32,22 +32,35 @@ class _ScriptTabState extends ConsumerState<ScriptTab> {
       final repo = ref.read(projectRepositoryProvider);
       final rewritten = await repo.rewriteScript(
         widget.projectId,
-        instruction: _instructionController.text.trim().isEmpty ? null : _instructionController.text.trim(),
+        instruction: _instructionController.text.trim().isEmpty
+            ? null
+            : _instructionController.text.trim(),
       );
-      ref.read(compositionControllerProvider(widget.projectId).notifier).replaceComposition(rewritten);
+      ref
+          .read(compositionControllerProvider(widget.projectId).notifier)
+          .replaceComposition(rewritten);
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(const SnackBar(content: Text('Script rewritten (tokens deducted)')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Script rewritten (tokens deducted)')),
+        );
       }
     } on ApiException catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(e.isInsufficientTokens ? 'Not enough tokens to rewrite the script' : e.message),
-        ));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              e.isInsufficientTokens
+                  ? 'Not enough tokens to rewrite the script'
+                  : e.message,
+            ),
+          ),
+        );
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Rewrite failed: $e')));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Rewrite failed: $e')));
       }
     } finally {
       if (mounted) setState(() => _rewriting = false);
@@ -56,8 +69,12 @@ class _ScriptTabState extends ConsumerState<ScriptTab> {
 
   @override
   Widget build(BuildContext context) {
-    final compositionAsync = ref.watch(compositionControllerProvider(widget.projectId));
-    final controller = ref.read(compositionControllerProvider(widget.projectId).notifier);
+    final compositionAsync = ref.watch(
+      compositionControllerProvider(widget.projectId),
+    );
+    final controller = ref.read(
+      compositionControllerProvider(widget.projectId).notifier,
+    );
 
     return compositionAsync.when(
       data: (composition) => ListView(
@@ -79,12 +96,16 @@ class _ScriptTabState extends ConsumerState<ScriptTab> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('AI rewrite', style: Theme.of(context).textTheme.titleSmall),
+                  Text(
+                    'AI rewrite',
+                    style: Theme.of(context).textTheme.titleSmall,
+                  ),
                   const SizedBox(height: 8),
                   TextField(
                     controller: _instructionController,
                     decoration: const InputDecoration(
-                      hintText: 'e.g. "Make it punchier" or "Add a call to action"',
+                      hintText:
+                          'e.g. "Make it punchier" or "Add a call to action"',
                       isDense: true,
                     ),
                   ),
@@ -128,7 +149,8 @@ class _ScriptTabState extends ConsumerState<ScriptTab> {
                         key: ValueKey('scene-text-${scene.id}'),
                         initialValue: scene.text,
                         maxLines: 3,
-                        onChanged: (value) => controller.updateSceneText(scene.id, value),
+                        onChanged: (value) =>
+                            controller.updateSceneText(scene.id, value),
                       ),
                     ],
                   ),

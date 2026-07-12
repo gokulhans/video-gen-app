@@ -92,6 +92,7 @@ export type PlayPurchaseState = {
 	valid: boolean;
 	acknowledged: boolean;
 	purchaseState: number;
+	orderId?: string;
 	raw: unknown;
 };
 
@@ -120,11 +121,12 @@ export async function verifyPlayPurchase(
 	if (!res.ok) {
 		return { valid: false, acknowledged: false, purchaseState: -1, raw: await res.text() };
 	}
-	const json = (await res.json()) as { purchaseState: number; acknowledgementState: number };
+	const json = (await res.json()) as { purchaseState: number; acknowledgementState: number; orderId?: string };
 	return {
 		valid: json.purchaseState === 0, // 0 = purchased
 		acknowledged: json.acknowledgementState === 1,
 		purchaseState: json.purchaseState,
+		orderId: json.orderId,
 		raw: json,
 	};
 }

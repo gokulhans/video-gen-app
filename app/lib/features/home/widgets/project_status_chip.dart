@@ -17,7 +17,10 @@ class ProjectStatusChipView extends StatelessWidget {
       ProjectStatusChip.failed => ('Failed', Colors.red),
     };
     return Chip(
-      label: Text(label, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+      label: Text(
+        label,
+        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+      ),
       backgroundColor: color.withValues(alpha: 0.15),
       labelStyle: TextStyle(color: color),
       visualDensity: VisualDensity.compact,

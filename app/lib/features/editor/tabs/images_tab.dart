@@ -1,5 +1,3 @@
-import 'dart:io';
-
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
@@ -22,7 +20,9 @@ class ImagesTab extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final compositionAsync = ref.watch(compositionControllerProvider(projectId));
+    final compositionAsync = ref.watch(
+      compositionControllerProvider(projectId),
+    );
 
     return compositionAsync.when(
       data: (composition) => GridView.builder(
@@ -59,7 +59,9 @@ class _SceneImageCardState extends ConsumerState<_SceneImageCard> {
   bool _busy = false;
 
   Future<void> _regenerate() async {
-    final estimate = await ref.read(tokenRepositoryProvider).getActionCostEstimate('image_generation');
+    final estimate = await ref
+        .read(tokenRepositoryProvider)
+        .getActionCostEstimate('image_generation');
     if (!mounted) return;
     final confirmed = await showDialog<bool>(
       context: context,
@@ -67,19 +69,28 @@ class _SceneImageCardState extends ConsumerState<_SceneImageCard> {
         title: const Text('Regenerate image'),
         content: Text('This will use ${estimate.total} tokens. Continue?'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
-          FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Regenerate')),
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Regenerate'),
+          ),
         ],
       ),
     );
     if (confirmed != true) return;
 
     setState(() => _busy = true);
-    final controller = ref.read(compositionControllerProvider(widget.projectId).notifier);
+    final controller = ref.read(
+      compositionControllerProvider(widget.projectId).notifier,
+    );
     controller.setSceneRegenerating(widget.scene.id);
     try {
-      final updatedScene =
-          await ref.read(projectRepositoryProvider).regenerateSceneImage(widget.projectId, widget.scene.id);
+      final updatedScene = await ref
+          .read(projectRepositoryProvider)
+          .regenerateSceneImage(widget.projectId, widget.scene.id);
       controller.updateSceneImage(
         widget.scene.id,
         imageUrl: updatedScene.imageUrl,
@@ -88,14 +99,22 @@ class _SceneImageCardState extends ConsumerState<_SceneImageCard> {
     } on ApiException catch (e) {
       controller.updateSceneImage(widget.scene.id, status: ImageStatus.failed);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(e.isInsufficientTokens ? 'Not enough tokens to regenerate this image' : e.message),
-        ));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              e.isInsufficientTokens
+                  ? 'Not enough tokens to regenerate this image'
+                  : e.message,
+            ),
+          ),
+        );
       }
     } catch (e) {
       controller.updateSceneImage(widget.scene.id, status: ImageStatus.failed);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Regenerate failed: $e')));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Regenerate failed: $e')));
       }
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -104,30 +123,60 @@ class _SceneImageCardState extends ConsumerState<_SceneImageCard> {
 
   Future<void> _replaceFromGallery() async {
     final picker = ImagePicker();
-    final file = await picker.pickImage(source: ImageSource.gallery, imageQuality: 90);
+    final file = await picker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 90,
+    );
     if (file == null) return;
 
     setState(() => _busy = true);
-    final controller = ref.read(compositionControllerProvider(widget.projectId).notifier);
+    final controller = ref.read(
+      compositionControllerProvider(widget.projectId).notifier,
+    );
     controller.setSceneRegenerating(widget.scene.id);
     try {
       final assetRepo = ref.read(assetRepositoryProvider);
-      final contentType = file.name.toLowerCase().endsWith('.png') ? 'image/png' : 'image/jpeg';
-      final presigned = await assetRepo.getUploadUrl(fileName: file.name, contentType: contentType);
-
-      final bytes = await File(file.path).readAsBytes();
-      final uploadDio = Dio();
-      await uploadDio.put(
-        presigned.uploadUrl,
-        data: bytes,
-        options: Options(headers: {'Content-Type': contentType}),
+      final contentType = file.name.toLowerCase().endsWith('.png')
+          ? 'image/png'
+          : 'image/jpeg';
+      final sizeBytes = await file.length();
+      if (sizeBytes > 15 * 1024 * 1024) {
+        throw ApiException(
+          'FILE_TOO_LARGE',
+          'Images must be smaller than 15 MB',
+        );
+      }
+      final presigned = await assetRepo.getUploadUrl(
+        kind: 'image',
+        contentType: contentType,
+        sizeBytes: sizeBytes,
       );
 
-      controller.updateSceneImage(widget.scene.id, imageUrl: presigned.publicUrl, status: ImageStatus.ready);
+      final uploadDio = Dio(
+        BaseOptions(
+          connectTimeout: const Duration(seconds: 20),
+          sendTimeout: const Duration(minutes: 2),
+        ),
+      );
+      await uploadDio.put(
+        presigned.uploadUrl,
+        data: file.openRead(),
+        options: Options(
+          headers: {'Content-Type': contentType, 'Content-Length': sizeBytes},
+        ),
+      );
+
+      controller.updateSceneImage(
+        widget.scene.id,
+        imageUrl: presigned.publicUrl,
+        status: ImageStatus.ready,
+      );
     } catch (e) {
       controller.updateSceneImage(widget.scene.id, status: ImageStatus.failed);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Upload failed: $e')));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Upload failed: $e')));
       }
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -166,7 +215,10 @@ class _SceneImageCardState extends ConsumerState<_SceneImageCard> {
                     top: 8,
                     left: 8,
                     child: Chip(
-                      label: const Text('Failed', style: TextStyle(fontSize: 11)),
+                      label: const Text(
+                        'Failed',
+                        style: TextStyle(fontSize: 11),
+                      ),
                       backgroundColor: Colors.red.withValues(alpha: 0.8),
                       labelStyle: const TextStyle(color: Colors.white),
                       visualDensity: VisualDensity.compact,
@@ -177,7 +229,10 @@ class _SceneImageCardState extends ConsumerState<_SceneImageCard> {
           ),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-            child: Text('Scene ${scene.order + 1}', style: Theme.of(context).textTheme.labelMedium),
+            child: Text(
+              'Scene ${scene.order + 1}',
+              style: Theme.of(context).textTheme.labelMedium,
+            ),
           ),
           Row(
             children: [
@@ -203,7 +258,7 @@ class _SceneImageCardState extends ConsumerState<_SceneImageCard> {
   }
 
   Widget _placeholder(BuildContext context) => Container(
-        color: Theme.of(context).colorScheme.surfaceContainerHighest,
-        child: const Icon(Icons.image_outlined, size: 40),
-      );
+    color: Theme.of(context).colorScheme.surfaceContainerHighest,
+    child: const Icon(Icons.image_outlined, size: 40),
+  );
 }

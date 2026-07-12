@@ -11,7 +11,7 @@
   "dependencies": {
     "@app/db": "workspace:*",
     "@app/shared": "workspace:*",
-    "drizzle-orm": "^0.44.2",
+    "drizzle-orm": "^0.45.2",
     "nanoid": "^5.1.5",
     "zod": "^4.0.5"
   },

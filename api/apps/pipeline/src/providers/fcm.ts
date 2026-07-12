@@ -91,35 +91,36 @@ export async function sendFcmPush(
   message: FcmMessage
 ): Promise<{ sent: number; failed: number }> {
   if (tokens.length === 0) return { sent: 0, failed: 0 };
-  const sa = JSON.parse(serviceAccountJson) as ServiceAccount;
-  const accessToken = await getAccessToken(sa);
+  if (!serviceAccountJson?.trim()) return { sent: 0, failed: tokens.length };
+
+  let sa: ServiceAccount;
+  let accessToken: string;
+  try {
+    sa = JSON.parse(serviceAccountJson) as ServiceAccount;
+    if (!sa.project_id || !sa.client_email || !sa.private_key) throw new Error("Incomplete FCM service account");
+    accessToken = await getAccessToken(sa);
+  } catch (error) {
+    console.error(JSON.stringify({ event: "fcm_setup_failed", error: String(error) }));
+    return { sent: 0, failed: tokens.length };
+  }
 
   let sent = 0;
   let failed = 0;
-  for (const token of tokens) {
-    try {
-      const res = await fetch(
-        `https://fcm.googleapis.com/v1/projects/${sa.project_id}/messages:send`,
-        {
+  for (let offset = 0; offset < tokens.length; offset += 10) {
+    const results = await Promise.all(tokens.slice(offset, offset + 10).map(async (token) => {
+      try {
+        const res = await fetch(`https://fcm.googleapis.com/v1/projects/${sa.project_id}/messages:send`, {
           method: "POST",
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            message: {
-              token,
-              notification: { title: message.title, body: message.body },
-              data: message.data ?? {},
-            },
-          }),
-        }
-      );
-      if (res.ok) sent++;
-      else failed++;
-    } catch {
-      failed++;
-    }
+          headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
+          body: JSON.stringify({ message: { token, notification: { title: message.title, body: message.body }, data: message.data ?? {} } }),
+        });
+        return res.ok;
+      } catch {
+        return false;
+      }
+    }));
+    sent += results.filter(Boolean).length;
+    failed += results.filter((ok) => !ok).length;
   }
   return { sent, failed };
 }

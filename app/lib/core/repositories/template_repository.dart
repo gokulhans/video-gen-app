@@ -23,8 +23,9 @@ class TemplateRepository {
     return _api.get<List<VoiceOption>>(
       '/voices',
       query: language != null ? {'language': language} : null,
-      parser: (json) =>
-          (json as List<dynamic>).map((e) => VoiceOption.fromJson(e as Map<String, dynamic>)).toList(),
+      parser: (json) => (json as List<dynamic>)
+          .map((e) => VoiceOption.fromJson(e as Map<String, dynamic>))
+          .toList(),
     );
   }
 }

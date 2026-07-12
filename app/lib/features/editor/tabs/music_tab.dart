@@ -42,8 +42,12 @@ class _MusicTabState extends ConsumerState<MusicTab> {
 
   @override
   Widget build(BuildContext context) {
-    final compositionAsync = ref.watch(compositionControllerProvider(widget.projectId));
-    final controller = ref.read(compositionControllerProvider(widget.projectId).notifier);
+    final compositionAsync = ref.watch(
+      compositionControllerProvider(widget.projectId),
+    );
+    final controller = ref.read(
+      compositionControllerProvider(widget.projectId).notifier,
+    );
 
     return compositionAsync.when(
       data: (composition) => ListView(
@@ -51,12 +55,24 @@ class _MusicTabState extends ConsumerState<MusicTab> {
         children: [
           Card(
             child: ListTile(
-              leading: Icon(composition.musicUrl == null
-                  ? Icons.music_off_outlined
-                  : (_playing ? Icons.stop_circle : Icons.play_circle_outline)),
-              title: Text(composition.musicUrl == null ? 'No music track' : 'Template music track'),
-              subtitle: composition.musicUrl != null ? const Text('Tap to preview') : null,
-              onTap: composition.musicUrl != null ? () => _togglePlay(composition.musicUrl!) : null,
+              leading: Icon(
+                composition.musicUrl == null
+                    ? Icons.music_off_outlined
+                    : (_playing
+                          ? Icons.stop_circle
+                          : Icons.play_circle_outline),
+              ),
+              title: Text(
+                composition.musicUrl == null
+                    ? 'No music track'
+                    : 'Template music track',
+              ),
+              subtitle: composition.musicUrl != null
+                  ? const Text('Tap to preview')
+                  : null,
+              onTap: composition.musicUrl != null
+                  ? () => _togglePlay(composition.musicUrl!)
+                  : null,
             ),
           ),
           const SizedBox(height: 24),

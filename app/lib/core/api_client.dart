@@ -14,7 +14,7 @@ class ApiException implements Exception {
   final int? statusCode;
 
   bool get isUnauthorized => statusCode == 401;
-  bool get isInsufficientTokens => code == 'INSUFFICIENT_TOKENS';
+  bool get isInsufficientTokens => code.toLowerCase() == 'insufficient_tokens';
 
   @override
   String toString() => 'ApiException($code): $message';
@@ -47,8 +47,11 @@ final dioProvider = Provider<Dio>((ref) {
   dio.interceptors.add(
     InterceptorsWrapper(
       onRequest: (options, handler) async {
-        final token = await storage.read(key: AppConstants.secureStorageTokenKey);
-        if (token != null && token.isNotEmpty) {
+        final token = await storage.read(
+          key: AppConstants.secureStorageTokenKey,
+        );
+        final apiHost = Uri.parse(AppConstants.apiBaseUrl).host;
+        if (options.uri.host == apiHost && token != null && token.isNotEmpty) {
           options.headers['Authorization'] = 'Bearer $token';
         }
         handler.next(options);
@@ -60,7 +63,14 @@ final dioProvider = Provider<Dio>((ref) {
   );
 
   if (const bool.fromEnvironment('dart.vm.product') == false) {
-    dio.interceptors.add(LogInterceptor(requestBody: true, responseBody: true));
+    dio.interceptors.add(
+      LogInterceptor(
+        requestBody: false,
+        responseBody: false,
+        requestHeader: false,
+        responseHeader: false,
+      ),
+    );
   }
 
   return dio;
@@ -88,10 +98,16 @@ class ApiClient {
     String path, {
     Object? body,
     Map<String, dynamic>? query,
+    Map<String, dynamic>? headers,
     T Function(dynamic json)? parser,
   }) {
     return _request(
-      () => _dio.post(path, data: body, queryParameters: query),
+      () => _dio.post(
+        path,
+        data: body,
+        queryParameters: query,
+        options: Options(headers: headers),
+      ),
       parser: parser,
     );
   }
@@ -101,10 +117,7 @@ class ApiClient {
     Object? body,
     T Function(dynamic json)? parser,
   }) {
-    return _request(
-      () => _dio.patch(path, data: body),
-      parser: parser,
-    );
+    return _request(() => _dio.patch(path, data: body), parser: parser);
   }
 
   Future<T> put<T>(
@@ -112,24 +125,20 @@ class ApiClient {
     Object? body,
     T Function(dynamic json)? parser,
   }) {
-    return _request(
-      () => _dio.put(path, data: body),
-      parser: parser,
-    );
+    return _request(() => _dio.put(path, data: body), parser: parser);
   }
 
-  Future<T> delete<T>(
-    String path, {
-    T Function(dynamic json)? parser,
-  }) {
-    return _request(
-      () => _dio.delete(path),
-      parser: parser,
-    );
+  Future<T> delete<T>(String path, {T Function(dynamic json)? parser}) {
+    return _request(() => _dio.delete(path), parser: parser);
   }
 
   Future<Response<dynamic>> download(String url, String savePath) {
-    return _dio.download(url, savePath);
+    return Dio(
+      BaseOptions(
+        connectTimeout: const Duration(seconds: 20),
+        receiveTimeout: const Duration(minutes: 5),
+      ),
+    ).download(url, savePath);
   }
 
   Dio get raw => _dio;
@@ -152,8 +161,15 @@ class ApiClient {
       final data = body is Map<String, dynamic> && body.containsKey('data')
           ? body['data']
           : body;
-      if (parser != null) return parser(data);
-      return data as T;
+      try {
+        if (parser != null) return parser(data);
+        return data as T;
+      } catch (error) {
+        throw ApiException(
+          'MALFORMED_RESPONSE',
+          'The server returned an unexpected response',
+        );
+      }
     } on DioException catch (e) {
       final data = e.response?.data;
       if (data is Map<String, dynamic> && data.containsKey('error')) {

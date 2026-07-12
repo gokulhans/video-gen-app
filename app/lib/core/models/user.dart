@@ -17,12 +17,12 @@ class AppUser extends Equatable {
   final int tokens;
 
   factory AppUser.fromJson(Map<String, dynamic> json) => AppUser(
-        id: json['id'] as String,
-        name: json['name'] as String? ?? '',
-        email: json['email'] as String? ?? '',
-        image: json['image'] as String?,
-        tokens: (json['tokens'] as num?)?.toInt() ?? 0,
-      );
+    id: json['id'] as String,
+    name: json['name'] as String? ?? '',
+    email: json['email'] as String? ?? '',
+    image: json['image'] as String?,
+    tokens: (json['tokens'] as num?)?.toInt() ?? 0,
+  );
 
   @override
   List<Object?> get props => [id, name, email, image, tokens];

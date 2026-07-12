@@ -49,14 +49,19 @@ class _TopicFormScreenState extends ConsumerState<TopicFormScreen> {
     final launchState = ref.watch(generationLaunchControllerProvider);
 
     ref.listen(generationLaunchControllerProvider, (previous, next) {
-      if (next.status == GenerationLaunchStatus.error && next.errorMessage != null) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(next.errorMessage!)));
+      if (next.status == GenerationLaunchStatus.error &&
+          next.errorMessage != null) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(next.errorMessage!)));
       }
     });
 
     if (form.template == null) {
       // Guard against deep-linking directly into this screen.
-      WidgetsBinding.instance.addPostFrameCallback((_) => context.go('/create/templates'));
+      WidgetsBinding.instance.addPostFrameCallback(
+        (_) => context.go('/create/templates'),
+      );
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
@@ -65,7 +70,10 @@ class _TopicFormScreenState extends ConsumerState<TopicFormScreen> {
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
         children: [
-          Text('What is this video about?', style: Theme.of(context).textTheme.titleMedium),
+          Text(
+            'What is this video about?',
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
           const SizedBox(height: 8),
           TextField(
             controller: _topicController,
@@ -76,7 +84,10 @@ class _TopicFormScreenState extends ConsumerState<TopicFormScreen> {
             onChanged: (value) => formNotifier.update(topic: value),
           ),
           const SizedBox(height: 16),
-          Text('Extra details (optional)', style: Theme.of(context).textTheme.titleMedium),
+          Text(
+            'Extra details (optional)',
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
           const SizedBox(height: 8),
           TextField(
             controller: _detailsController,
@@ -109,7 +120,8 @@ class _TopicFormScreenState extends ConsumerState<TopicFormScreen> {
             max: 90,
             divisions: 15,
             label: '${form.durationSec}s',
-            onChanged: (value) => formNotifier.update(durationSec: value.round()),
+            onChanged: (value) =>
+                formNotifier.update(durationSec: value.round()),
           ),
           const SizedBox(height: 12),
           Text('Voice', style: Theme.of(context).textTheme.titleMedium),
@@ -133,7 +145,9 @@ class _TopicFormScreenState extends ConsumerState<TopicFormScreen> {
             onPressed: launchState.status == GenerationLaunchStatus.loading
                 ? null
                 : () async {
-                    final project = await ref.read(generationLaunchControllerProvider.notifier).launch();
+                    final project = await ref
+                        .read(generationLaunchControllerProvider.notifier)
+                        .launch();
                     if (project != null && context.mounted) {
                       context.go('/create/progress/${project.id}');
                     }
@@ -142,7 +156,10 @@ class _TopicFormScreenState extends ConsumerState<TopicFormScreen> {
                 ? const SizedBox(
                     width: 18,
                     height: 18,
-                    child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Colors.white,
+                    ),
                   )
                 : const Icon(Icons.auto_awesome),
             label: const Text('Generate video'),
@@ -179,7 +196,9 @@ class _CostEstimateCard extends StatelessWidget {
                     ),
                     if (estimate.breakdown.isNotEmpty)
                       Text(
-                        estimate.breakdown.entries.map((e) => '${e.key}: ${e.value}').join(' · '),
+                        estimate.breakdown.entries
+                            .map((e) => '${e.key}: ${e.value}')
+                            .join(' · '),
                         style: Theme.of(context).textTheme.bodySmall,
                       ),
                   ],
@@ -189,7 +208,11 @@ class _CostEstimateCard extends StatelessWidget {
           ),
           loading: () => const Row(
             children: [
-              SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)),
+              SizedBox(
+                width: 18,
+                height: 18,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
               SizedBox(width: 12),
               Text('Estimating cost...'),
             ],

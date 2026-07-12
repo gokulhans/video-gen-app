@@ -1,6 +1,6 @@
 import { WorkflowEntrypoint, WorkflowStep, WorkflowEvent } from "cloudflare:workers";
 import { NonRetryableError } from "cloudflare:workflows";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 import { getDb, schema } from "@app/db";
 import { ProjectComposition, WordTimestamp } from "@app/shared";
@@ -9,7 +9,6 @@ import { assetUrl } from "../env.js";
 import { deductTokens, getTokenCost, refundTokens } from "../tokens.js";
 import { openaiTextToSpeech, openaiWordTimestamps } from "../providers/openai.js";
 import { geminiTextToSpeech } from "../providers/gemini.js";
-import { replicateWordTimestamps } from "../providers/replicate.js";
 
 export const RegenerateVoiceoverParams = z.object({
   projectId: z.string(),
@@ -31,6 +30,7 @@ export class RegenerateVoiceover extends WorkflowEntrypoint<Env, RegenerateVoice
         amount: cost,
         type: "voice_generation",
         description: `Regenerate voiceover for project ${projectId}`,
+        operationKey: `regen-voice:${event.instanceId}:debit`,
         projectId,
       });
       if (!result.ok) {
@@ -45,19 +45,26 @@ export class RegenerateVoiceover extends WorkflowEntrypoint<Env, RegenerateVoice
     try {
       const script = await step.do("load-script", async () => {
         const db = getDb(env.DB);
-        const [project] = await db.select().from(schema.projects).where(eq(schema.projects.id, projectId)).limit(1);
+        const [project] = await db
+          .select()
+          .from(schema.projects)
+          .where(and(eq(schema.projects.id, projectId), eq(schema.projects.userId, userId)))
+          .limit(1);
         if (!project || !project.script) {
           throw new NonRetryableError(`Project ${projectId} has no script to voice`, "ScriptMissing");
         }
         return project.script;
       });
 
-      const voiceoverKey = `${userId}/${projectId}/voiceover.mp3`;
+      const geminiVoice = voice.startsWith("gemini:");
+      const voiceoverKey = `${userId}/${projectId}/voiceover.${geminiVoice ? "wav" : "mp3"}`;
       await step.do("regenerate-voiceover", { retries: { limit: 3, delay: "10 seconds", backoff: "exponential" }, timeout: "3 minutes" }, async () => {
-        const audio = voice.startsWith("gemini:")
+        const audio = geminiVoice
           ? await geminiTextToSpeech(env, { text: script, voiceName: voice.slice("gemini:".length) })
           : await openaiTextToSpeech(env, { text: script, voice });
-        await env.ASSETS_BUCKET.put(voiceoverKey, audio, { httpMetadata: { contentType: "audio/mpeg" } });
+        await env.ASSETS_BUCKET.put(voiceoverKey, audio, {
+          httpMetadata: { contentType: geminiVoice ? "audio/wav" : "audio/mpeg" },
+        });
       });
       const voiceoverUrl = assetUrl(env, voiceoverKey);
 
@@ -68,18 +75,17 @@ export class RegenerateVoiceover extends WorkflowEntrypoint<Env, RegenerateVoice
           const audioObj = await env.ASSETS_BUCKET.get(voiceoverKey);
           if (!audioObj) throw new Error("Voiceover object missing from R2 after upload");
           const audioBuffer = await audioObj.arrayBuffer();
-          try {
-            return await openaiWordTimestamps(env, audioBuffer);
-          } catch (err) {
-            console.error("OpenAI Whisper failed, falling back to Replicate:", err);
-            return await replicateWordTimestamps(env, { audioUrl: voiceoverUrl });
-          }
+          return openaiWordTimestamps(env, audioBuffer);
         }
       );
 
       const composition = await step.do("update-composition", async () => {
         const db = getDb(env.DB);
-        const [project] = await db.select().from(schema.projects).where(eq(schema.projects.id, projectId)).limit(1);
+        const [project] = await db
+          .select()
+          .from(schema.projects)
+          .where(and(eq(schema.projects.id, projectId), eq(schema.projects.userId, userId)))
+          .limit(1);
         const existingComposition = project?.composition as ProjectComposition | null;
         const nextComposition = existingComposition
           ? ProjectComposition.parse({ ...existingComposition, voice, voiceoverUrl, words })
@@ -107,6 +113,7 @@ export class RegenerateVoiceover extends WorkflowEntrypoint<Env, RegenerateVoice
           userId,
           amount: voiceCost,
           description: `Refund: voiceover regeneration failed for project ${projectId}`,
+          operationKey: `regen-voice:${event.instanceId}:refund`,
           projectId,
         });
       });

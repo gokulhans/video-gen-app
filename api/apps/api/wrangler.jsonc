@@ -3,10 +3,12 @@
 	"name": "api",
 	"account_id": "58f07fb13c26e83dd6109d957083478d",
   "main": "src/index.ts",
-	"compatibility_date": "2026-01-10",
+	"compatibility_date": "2026-07-12",
 	"compatibility_flags": ["nodejs_compat"],
 	"observability": {
-		"enabled": true
+		"enabled": true,
+		"logs": { "head_sampling_rate": 1 },
+		"traces": { "enabled": true, "head_sampling_rate": 0.05 }
 	},
 
 	// ---- D1 ----
@@ -14,7 +16,8 @@
 		{
 			"binding": "DB",
 			"database_name": "ai-video-db",
-			"database_id": "42aede4d-4f0c-41da-86d0-4a2bce18d83a"
+			"database_id": "42aede4d-4f0c-41da-86d0-4a2bce18d83a",
+			"migrations_dir": "../../packages/db/migrations"
 		}
 	],
 
@@ -59,6 +62,12 @@
 			"name": "regen-voice",
 			"class_name": "RegenerateVoiceover",
 			"script_name": "pipeline"
+		},
+		{
+			"binding": "REWRITE_SCRIPT",
+			"name": "rewrite-script",
+			"class_name": "RewriteScript",
+			"script_name": "pipeline"
 		}
 	],
 
@@ -70,7 +79,9 @@
 	// ---- Non-secret env vars ----
 	"vars": {
 		"AI_GATEWAY_BASE_URL": "https://gateway.ai.cloudflare.com/v1/58f07fb13c26e83dd6109d957083478d/ai-video",
-		"APP_BASE_URL": "https://api.gokulhansv.workers.dev"
+		"APP_BASE_URL": "https://api.gokulhansv.workers.dev",
+		"ALLOWED_ORIGINS": "",
+		"PLAY_TOKEN_PACKS_JSON": "{\"tokens_500\":500,\"tokens_1500\":1500,\"tokens_5000\":5000}"
 	}
 
 	// Secrets (set via `wrangler secret put <NAME>`, NOT stored here):

@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:uuid/uuid.dart';
 
 import '../api_client.dart';
 import '../constants.dart';
@@ -15,6 +16,7 @@ class RenderRepository {
     return _api.post<RenderJob>(
       '/projects/$projectId/render',
       body: {'resolution': resolution.wireValue},
+      headers: {'Idempotency-Key': const Uuid().v4()},
       parser: (json) => RenderJob.fromJson(json as Map<String, dynamic>),
     );
   }
@@ -30,7 +32,9 @@ class RenderRepository {
   /// `RenderJobDO`. Uses wss:// derived from the configured HTTP base URL.
   String webSocketUrl(String jobId) {
     final httpBase = AppConstants.apiBaseUrl;
-    final wsBase = httpBase.replaceFirst('https://', 'wss://').replaceFirst('http://', 'ws://');
+    final wsBase = httpBase
+        .replaceFirst('https://', 'wss://')
+        .replaceFirst('http://', 'ws://');
     return '$wsBase/render-jobs/$jobId/ws';
   }
 }

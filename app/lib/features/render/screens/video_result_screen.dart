@@ -53,13 +53,15 @@ class _VideoResultScreenState extends ConsumerState<VideoResultScreen> {
       await api.download(url, savePath);
       setState(() => _localPath = savePath);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Saved to $savePath')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Saved to $savePath')));
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Download failed: $e')));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Download failed: $e')));
       }
     } finally {
       if (mounted) setState(() => _downloading = false);
@@ -82,13 +84,14 @@ class _VideoResultScreenState extends ConsumerState<VideoResultScreen> {
       // WhatsApp typically appears as one of the top targets for video
       // attachments; there is no supported "force WhatsApp" API on Android
       // without WhatsApp-specific intents, so we rely on the share sheet.
-      await Share.shareXFiles(
-        [XFile(path)],
-        text: 'Check out this video I made with AI Video Maker!',
-      );
+      await Share.shareXFiles([
+        XFile(path),
+      ], text: 'Check out this video I made with AI Video Maker!');
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Share failed: $e')));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Share failed: $e')));
       }
     }
   }
@@ -117,7 +120,10 @@ class _VideoResultScreenState extends ConsumerState<VideoResultScreen> {
                             alignment: Alignment.bottomCenter,
                             children: [
                               VideoPlayer(_controller!),
-                              VideoProgressIndicator(_controller!, allowScrubbing: true),
+                              VideoProgressIndicator(
+                                _controller!,
+                                allowScrubbing: true,
+                              ),
                             ],
                           ),
                         )
@@ -132,7 +138,13 @@ class _VideoResultScreenState extends ConsumerState<VideoResultScreen> {
                       child: OutlinedButton.icon(
                         onPressed: _downloading ? null : () => _download(url),
                         icon: _downloading
-                            ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                            ? const SizedBox(
+                                width: 16,
+                                height: 16,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
+                              )
                             : const Icon(Icons.download_outlined),
                         label: const Text('Download'),
                       ),

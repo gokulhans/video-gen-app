@@ -10,11 +10,11 @@ import '../../../core/repositories/brand_repository.dart';
 import '../../../core/repositories/project_repository.dart';
 
 /// Loads the project (and its composition) for the editor.
-final editorProjectProvider =
-    FutureProvider.autoDispose.family<Project, String>((ref, projectId) async {
-  final repo = ref.watch(projectRepositoryProvider);
-  return repo.getProject(projectId);
-});
+final editorProjectProvider = FutureProvider.autoDispose
+    .family<Project, String>((ref, projectId) async {
+      final repo = ref.watch(projectRepositoryProvider);
+      return repo.getProject(projectId);
+    });
 
 final brandsProvider = FutureProvider.autoDispose<List<Brand>>((ref) async {
   return ref.watch(brandRepositoryProvider).listBrands();
@@ -25,8 +25,10 @@ enum AutosaveStatus { idle, saving, saved, error }
 /// Owns the live [ProjectComposition] being edited, exposes granular update
 /// methods used by each editor tab, and autosaves via a 2s debounce against
 /// `PATCH /projects/:id/composition`.
-class CompositionController extends StateNotifier<AsyncValue<ProjectComposition>> {
-  CompositionController(this._ref, this.projectId) : super(const AsyncValue.loading()) {
+class CompositionController
+    extends StateNotifier<AsyncValue<ProjectComposition>> {
+  CompositionController(this._ref, this.projectId)
+    : super(const AsyncValue.loading()) {
     _load();
   }
 
@@ -34,13 +36,20 @@ class CompositionController extends StateNotifier<AsyncValue<ProjectComposition>
   final String projectId;
   Timer? _debounce;
   AutosaveStatus autosaveStatus = AutosaveStatus.idle;
-  final _autosaveStatusController = StreamController<AutosaveStatus>.broadcast();
-  Stream<AutosaveStatus> get autosaveStatusStream => _autosaveStatusController.stream;
+  final _autosaveStatusController =
+      StreamController<AutosaveStatus>.broadcast();
+  Future<void>? _saveInFlight;
+  bool _dirty = false;
+  Stream<AutosaveStatus> get autosaveStatusStream =>
+      _autosaveStatusController.stream;
 
   Future<void> _load() async {
     try {
-      final project = await _ref.read(projectRepositoryProvider).getProject(projectId);
-      final composition = project.composition ??
+      final project = await _ref
+          .read(projectRepositoryProvider)
+          .getProject(projectId);
+      final composition =
+          project.composition ??
           ProjectComposition(durationSec: 45, script: '', voice: 'alloy');
       state = AsyncValue.data(composition);
     } catch (e, st) {
@@ -52,35 +61,53 @@ class CompositionController extends StateNotifier<AsyncValue<ProjectComposition>
     final current = state.valueOrNull;
     if (current == null) return;
     state = AsyncValue.data(transform(current));
+    _dirty = true;
     _scheduleAutosave();
   }
 
-  void updateScript(String script) => _update((c) => c.copyWith(script: script));
+  void updateScript(String script) =>
+      _update((c) => c.copyWith(script: script));
 
-  void updateSceneText(String sceneId, String text) => _update((c) => c.copyWith(
-        scenes: c.scenes.map((s) => s.id == sceneId ? s.copyWith(text: text) : s).toList(),
-      ));
+  void updateSceneText(String sceneId, String text) => _update(
+    (c) => c.copyWith(
+      scenes: c.scenes
+          .map((s) => s.id == sceneId ? s.copyWith(text: text) : s)
+          .toList(),
+    ),
+  );
 
-  void updateSceneImage(String sceneId, {String? imageUrl, ImageStatus? status}) => _update((c) => c
-      .copyWith(
-    scenes: c.scenes
-        .map((s) => s.id == sceneId ? s.copyWith(imageUrl: imageUrl, imageStatus: status) : s)
-        .toList(),
-  ));
+  void updateSceneImage(
+    String sceneId, {
+    String? imageUrl,
+    ImageStatus? status,
+  }) => _update(
+    (c) => c.copyWith(
+      scenes: c.scenes
+          .map(
+            (s) => s.id == sceneId
+                ? s.copyWith(imageUrl: imageUrl, imageStatus: status)
+                : s,
+          )
+          .toList(),
+    ),
+  );
 
   void setSceneRegenerating(String sceneId) =>
       updateSceneImage(sceneId, status: ImageStatus.generating);
 
   void updateVoice(String voice) => _update((c) => c.copyWith(voice: voice));
 
-  void updateVoiceoverUrl(String? url) => _update((c) => c.copyWith(voiceoverUrl: url));
+  void updateVoiceoverUrl(String? url) =>
+      _update((c) => c.copyWith(voiceoverUrl: url));
 
-  void updateCaptions(CaptionConfig captions) => _update((c) => c.copyWith(captions: captions));
+  void updateCaptions(CaptionConfig captions) =>
+      _update((c) => c.copyWith(captions: captions));
 
   void updateMusic({String? musicUrl, double? musicVolume}) =>
       _update((c) => c.copyWith(musicUrl: musicUrl, musicVolume: musicVolume));
 
-  void updateBrand(BrandConfig brand) => _update((c) => c.copyWith(brand: brand));
+  void updateBrand(BrandConfig brand) =>
+      _update((c) => c.copyWith(brand: brand));
 
   void replaceComposition(ProjectComposition composition) {
     state = AsyncValue.data(composition);
@@ -89,21 +116,38 @@ class CompositionController extends StateNotifier<AsyncValue<ProjectComposition>
 
   void _scheduleAutosave() {
     _debounce?.cancel();
-    _debounce = Timer(AppConstants.autosaveDebounce, _save);
+    _debounce = Timer(AppConstants.autosaveDebounce, () {
+      unawaited(_save().catchError((_) {}));
+    });
   }
 
-  Future<void> _save() async {
-    final composition = state.valueOrNull;
-    if (composition == null) return;
-    autosaveStatus = AutosaveStatus.saving;
-    _autosaveStatusController.add(AutosaveStatus.saving);
-    try {
-      await _ref.read(projectRepositoryProvider).patchComposition(projectId, composition);
-      autosaveStatus = AutosaveStatus.saved;
-      _autosaveStatusController.add(AutosaveStatus.saved);
-    } catch (_) {
-      autosaveStatus = AutosaveStatus.error;
-      _autosaveStatusController.add(AutosaveStatus.error);
+  Future<void> _save() {
+    final existing = _saveInFlight;
+    if (existing != null) return existing;
+    final future = _runSaveLoop();
+    _saveInFlight = future;
+    return future.whenComplete(() => _saveInFlight = null);
+  }
+
+  Future<void> _runSaveLoop() async {
+    while (_dirty) {
+      final composition = state.valueOrNull;
+      if (composition == null) return;
+      _dirty = false;
+      autosaveStatus = AutosaveStatus.saving;
+      _autosaveStatusController.add(AutosaveStatus.saving);
+      try {
+        await _ref
+            .read(projectRepositoryProvider)
+            .patchComposition(projectId, composition);
+        autosaveStatus = AutosaveStatus.saved;
+        _autosaveStatusController.add(AutosaveStatus.saved);
+      } catch (error) {
+        _dirty = true;
+        autosaveStatus = AutosaveStatus.error;
+        _autosaveStatusController.add(AutosaveStatus.error);
+        rethrow;
+      }
     }
   }
 
@@ -122,6 +166,9 @@ class CompositionController extends StateNotifier<AsyncValue<ProjectComposition>
 }
 
 final compositionControllerProvider = StateNotifierProvider.autoDispose
-    .family<CompositionController, AsyncValue<ProjectComposition>, String>((ref, projectId) {
-  return CompositionController(ref, projectId);
-});
+    .family<CompositionController, AsyncValue<ProjectComposition>, String>((
+      ref,
+      projectId,
+    ) {
+      return CompositionController(ref, projectId);
+    });

@@ -16,13 +16,13 @@ import 'models/user.dart';
 /// than the shared [ApiClient].
 class AuthRepository {
   AuthRepository(this._storage)
-      : _authDio = Dio(
-          BaseOptions(
-            baseUrl: AppConstants.authBaseUrl,
-            contentType: 'application/json',
-            connectTimeout: const Duration(seconds: 20),
-          ),
-        );
+    : _authDio = Dio(
+        BaseOptions(
+          baseUrl: AppConstants.authBaseUrl,
+          contentType: 'application/json',
+          connectTimeout: const Duration(seconds: 20),
+        ),
+      );
 
   final FlutterSecureStorage _storage;
   final Dio _authDio;
@@ -34,7 +34,8 @@ class AuthRepository {
     scopes: const ['email', 'profile'],
   );
 
-  Future<String?> currentToken() => _storage.read(key: AppConstants.secureStorageTokenKey);
+  Future<String?> currentToken() =>
+      _storage.read(key: AppConstants.secureStorageTokenKey);
 
   Future<bool> isSignedIn() async {
     final token = await currentToken();
@@ -51,7 +52,7 @@ class AuthRepository {
         '/sign-up/email',
         data: {'name': name, 'email': email, 'password': password},
       );
-      return _persistSession(response.data as Map<String, dynamic>);
+      return _persistSession(response);
     } on DioException catch (e) {
       throw _mapAuthError(e);
     }
@@ -66,7 +67,7 @@ class AuthRepository {
         '/sign-in/email',
         data: {'email': email, 'password': password},
       );
-      return _persistSession(response.data as Map<String, dynamic>);
+      return _persistSession(response);
     } on DioException catch (e) {
       throw _mapAuthError(e);
     }
@@ -83,13 +84,16 @@ class AuthRepository {
       final googleAuth = await account.authentication;
       final idToken = googleAuth.idToken;
       if (idToken == null) {
-        throw ApiException('GOOGLE_AUTH_FAILED', 'Could not obtain Google ID token');
+        throw ApiException(
+          'GOOGLE_AUTH_FAILED',
+          'Could not obtain Google ID token',
+        );
       }
       final response = await _authDio.post(
         '/sign-in/social',
         data: {'provider': 'google', 'idToken': idToken},
       );
-      return _persistSession(response.data as Map<String, dynamic>);
+      return _persistSession(response);
     } on DioException catch (e) {
       throw _mapAuthError(e);
     }
@@ -117,19 +121,76 @@ class AuthRepository {
     } catch (_) {}
   }
 
-  Future<AppUser> _persistSession(Map<String, dynamic> json) async {
-    // better-auth typically returns { token, user: {...} } or nests under "data".
-    final body = json.containsKey('data') ? json['data'] as Map<String, dynamic> : json;
-    final token = body['token'] as String? ?? body['session']?['token'] as String?;
+  /// Validates the stored bearer token against better-auth's `/get-session`.
+  Future<AppUser?> fetchCurrentUser() async {
+    final token = await currentToken();
+    if (token == null || token.isEmpty) return null;
+    try {
+      final response = await _authDio.get(
+        '/get-session',
+        options: Options(headers: {'Authorization': 'Bearer $token'}),
+      );
+      final data = response.data;
+      if (data == null) return null;
+      final body = data is Map<String, dynamic>
+          ? (data.containsKey('data')
+                ? data['data'] as Map<String, dynamic>
+                : data)
+          : null;
+      final userJson = body?['user'] as Map<String, dynamic>?;
+      if (userJson == null) return null;
+      return AppUser.fromJson(userJson);
+    } on DioException catch (error) {
+      final status = error.response?.statusCode;
+      if (status == 401 || status == 403) return null;
+      // Preserve a locally authenticated session during transient offline/5xx
+      // failures. A definitive auth rejection above is the only condition that
+      // signs the user out.
+      final values = await Future.wait([
+        _storage.read(key: AppConstants.secureStorageUserIdKey),
+        _storage.read(key: AppConstants.secureStorageUserEmailKey),
+      ]);
+      final id = values[0];
+      final email = values[1];
+      if (id != null && email != null) {
+        return AppUser(id: id, name: email, email: email);
+      }
+      throw _mapAuthError(error);
+    }
+  }
+
+  Future<AppUser> _persistSession(Response<dynamic> response) async {
+    // better-auth bearer plugin returns the token in `set-auth-token`; body may
+    // also include `{ token, user }` (or nested under "data").
+    final json = response.data;
+    if (json is! Map<String, dynamic>) {
+      throw ApiException(
+        'AUTH_RESPONSE_MALFORMED',
+        'Unexpected auth response shape',
+      );
+    }
+    final body = json.containsKey('data')
+        ? json['data'] as Map<String, dynamic>
+        : json;
+    final token =
+        response.headers.value('set-auth-token') ??
+        body['token'] as String? ??
+        body['session']?['token'] as String?;
     final userJson = body['user'] as Map<String, dynamic>?;
     if (token == null || userJson == null) {
-      throw ApiException('AUTH_RESPONSE_MALFORMED', 'Unexpected auth response shape');
+      throw ApiException(
+        'AUTH_RESPONSE_MALFORMED',
+        'Unexpected auth response shape',
+      );
     }
     final user = AppUser.fromJson(userJson);
     await Future.wait([
       _storage.write(key: AppConstants.secureStorageTokenKey, value: token),
       _storage.write(key: AppConstants.secureStorageUserIdKey, value: user.id),
-      _storage.write(key: AppConstants.secureStorageUserEmailKey, value: user.email),
+      _storage.write(
+        key: AppConstants.secureStorageUserEmailKey,
+        value: user.email,
+      ),
     ]);
     return user;
   }
@@ -146,7 +207,11 @@ class AuthRepository {
         );
       }
       if (data['message'] != null) {
-        return ApiException('AUTH_ERROR', data['message'].toString(), statusCode: e.response?.statusCode);
+        return ApiException(
+          'AUTH_ERROR',
+          data['message'].toString(),
+          statusCode: e.response?.statusCode,
+        );
       }
     }
     return ApiException(
@@ -165,14 +230,5 @@ final authRepositoryProvider = Provider<AuthRepository>((ref) {
 final authStateProvider = FutureProvider<AppUser?>((ref) async {
   ref.watch(authTokenRevisionProvider);
   final repo = ref.watch(authRepositoryProvider);
-  final signedIn = await repo.isSignedIn();
-  if (!signedIn) return null;
-  try {
-    final api = ref.watch(apiClientProvider);
-    final json = await api.get<Map<String, dynamic>>('/auth/me');
-    return AppUser.fromJson(json);
-  } catch (_) {
-    // Token might be stale/expired; treat as signed out.
-    return null;
-  }
+  return repo.fetchCurrentUser();
 });

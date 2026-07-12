@@ -55,14 +55,20 @@ class _PurchaseScreenState extends ConsumerState<PurchaseScreen> {
     // TODO: replace with a real purchaseStream listener once product ids
     // are registered in the Play Console. Kept disabled by default so this
     // screen is safe to ship without a configured billing account.
-    _subscription = _iap.purchaseStream.listen(_onPurchaseUpdate, onError: (_) {});
+    _subscription = _iap.purchaseStream.listen(
+      _onPurchaseUpdate,
+      onError: (_) {},
+    );
   }
 
   Future<void> _onPurchaseUpdate(List<PurchaseDetails> purchases) async {
     for (final purchase in purchases) {
-      if (purchase.status == PurchaseStatus.purchased || purchase.status == PurchaseStatus.restored) {
+      if (purchase.status == PurchaseStatus.purchased ||
+          purchase.status == PurchaseStatus.restored) {
         try {
-          await ref.read(tokenRepositoryProvider).verifyPurchase(
+          await ref
+              .read(tokenRepositoryProvider)
+              .verifyPurchase(
                 productId: purchase.productID,
                 purchaseToken: purchase.verificationData.serverVerificationData,
               );
@@ -74,14 +80,18 @@ class _PurchaseScreenState extends ConsumerState<PurchaseScreen> {
           }
         } on ApiException catch (e) {
           if (mounted) {
-            ScaffoldMessenger.of(context)
-                .showSnackBar(SnackBar(content: Text('Purchase verification failed: ${e.message}')));
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Purchase verification failed: ${e.message}'),
+              ),
+            );
           }
         }
       } else if (purchase.status == PurchaseStatus.error) {
         if (mounted) {
-          ScaffoldMessenger.of(context)
-              .showSnackBar(SnackBar(content: Text('Purchase error: ${purchase.error}')));
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Purchase error: ${purchase.error}')),
+          );
         }
       }
     }
@@ -91,7 +101,11 @@ class _PurchaseScreenState extends ConsumerState<PurchaseScreen> {
   Future<void> _buy(String productId) async {
     if (!_available) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Billing not available on this device/build yet (TODO: configure Play Billing).')),
+        const SnackBar(
+          content: Text(
+            'Billing not available on this device/build yet (TODO: configure Play Billing).',
+          ),
+        ),
       );
       return;
     }
@@ -104,11 +118,15 @@ class _PurchaseScreenState extends ConsumerState<PurchaseScreen> {
       if (response.productDetails.isEmpty) {
         throw Exception('Product not found in store listing');
       }
-      final purchaseParam = PurchaseParam(productDetails: response.productDetails.first);
+      final purchaseParam = PurchaseParam(
+        productDetails: response.productDetails.first,
+      );
       await _iap.buyConsumable(purchaseParam: purchaseParam);
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Could not start purchase: $e')));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Could not start purchase: $e')));
       }
       setState(() => _pendingProductId = null);
     } finally {
@@ -151,7 +169,11 @@ class _PurchaseScreenState extends ConsumerState<PurchaseScreen> {
                   title: Text(pkg.label),
                   subtitle: Text('${pkg.tokens} tokens'),
                   trailing: _pendingProductId == pkg.productId && _busy
-                      ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
                       : FilledButton(
                           onPressed: () => _buy(pkg.productId),
                           child: const Text('Buy'),

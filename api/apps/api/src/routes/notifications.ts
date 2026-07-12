@@ -10,7 +10,7 @@ export const notifications = new Hono<AppEnv>();
 notifications.get("/", async (c) => {
 	const userId = c.get("userId");
 	const db = getDb(c.env.DB);
-	const limit = Math.min(Number(c.req.query("limit") ?? 50), 200);
+	const limit = Math.min(100, Math.max(1, Number(c.req.query("limit") ?? 50) || 50));
 	const rows = await db
 		.select()
 		.from(schema.notifications)

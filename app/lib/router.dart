@@ -29,7 +29,8 @@ final routerProvider = Provider<GoRouter>((ref) {
     redirect: (context, state) {
       final authAsync = ref.read(authStateProvider);
       final signedIn = authAsync.valueOrNull != null;
-      final loggingIn = state.matchedLocation == '/sign-in' ||
+      final loggingIn =
+          state.matchedLocation == '/sign-in' ||
           state.matchedLocation == '/sign-up' ||
           state.matchedLocation == '/onboarding';
 
@@ -37,16 +38,27 @@ final routerProvider = Provider<GoRouter>((ref) {
       if (authAsync.isLoading) return null;
 
       if (!signedIn && !loggingIn) return '/sign-in';
-      if (signedIn && (state.matchedLocation == '/sign-in' || state.matchedLocation == '/sign-up')) {
+      if (signedIn &&
+          (state.matchedLocation == '/sign-in' ||
+              state.matchedLocation == '/sign-up')) {
         return '/home';
       }
       return null;
     },
     refreshListenable: GoRouterRefreshStream(ref),
     routes: [
-      GoRoute(path: '/sign-in', builder: (context, state) => const SignInScreen()),
-      GoRoute(path: '/sign-up', builder: (context, state) => const SignUpScreen()),
-      GoRoute(path: '/onboarding', builder: (context, state) => const OnboardingScreen()),
+      GoRoute(
+        path: '/sign-in',
+        builder: (context, state) => const SignInScreen(),
+      ),
+      GoRoute(
+        path: '/sign-up',
+        builder: (context, state) => const SignUpScreen(),
+      ),
+      GoRoute(
+        path: '/onboarding',
+        builder: (context, state) => const OnboardingScreen(),
+      ),
       GoRoute(path: '/home', builder: (context, state) => const HomeScreen()),
       GoRoute(
         path: '/create/templates',
@@ -64,31 +76,36 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/editor/:projectId',
-        builder: (context, state) => EditorScreen(
-          projectId: state.pathParameters['projectId']!,
-        ),
+        builder: (context, state) =>
+            EditorScreen(projectId: state.pathParameters['projectId']!),
       ),
       GoRoute(
         path: '/render/:projectId',
-        builder: (context, state) => RenderOptionsScreen(
-          projectId: state.pathParameters['projectId']!,
-        ),
+        builder: (context, state) =>
+            RenderOptionsScreen(projectId: state.pathParameters['projectId']!),
       ),
       GoRoute(
         path: '/render/progress/:jobId',
-        builder: (context, state) => RenderProgressScreen(
-          jobId: state.pathParameters['jobId']!,
-        ),
+        builder: (context, state) =>
+            RenderProgressScreen(jobId: state.pathParameters['jobId']!),
       ),
       GoRoute(
         path: '/render/result/:jobId',
-        builder: (context, state) => VideoResultScreen(
-          jobId: state.pathParameters['jobId']!,
-        ),
+        builder: (context, state) =>
+            VideoResultScreen(jobId: state.pathParameters['jobId']!),
       ),
-      GoRoute(path: '/notifications', builder: (context, state) => const NotificationsScreen()),
-      GoRoute(path: '/tokens', builder: (context, state) => const TokenBalanceScreen()),
-      GoRoute(path: '/tokens/purchase', builder: (context, state) => const PurchaseScreen()),
+      GoRoute(
+        path: '/notifications',
+        builder: (context, state) => const NotificationsScreen(),
+      ),
+      GoRoute(
+        path: '/tokens',
+        builder: (context, state) => const TokenBalanceScreen(),
+      ),
+      GoRoute(
+        path: '/tokens/purchase',
+        builder: (context, state) => const PurchaseScreen(),
+      ),
     ],
   );
 });

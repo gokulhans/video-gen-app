@@ -26,20 +26,22 @@ class GenerationProgressScreen extends ConsumerStatefulWidget {
   final String projectId;
 
   @override
-  ConsumerState<GenerationProgressScreen> createState() => _GenerationProgressScreenState();
+  ConsumerState<GenerationProgressScreen> createState() =>
+      _GenerationProgressScreenState();
 }
 
-class _GenerationProgressScreenState extends ConsumerState<GenerationProgressScreen> {
+class _GenerationProgressScreenState
+    extends ConsumerState<GenerationProgressScreen> {
   Timer? _timer;
   GenerationStatusResponse? _status;
   Object? _error;
   bool _retrying = false;
+  bool _polling = false;
 
   @override
   void initState() {
     super.initState();
-    _poll();
-    _timer = Timer.periodic(AppConstants.generationPollInterval, (_) => _poll());
+    _pollAndSchedule();
   }
 
   @override
@@ -49,6 +51,8 @@ class _GenerationProgressScreenState extends ConsumerState<GenerationProgressScr
   }
 
   Future<void> _poll() async {
+    if (_polling) return;
+    _polling = true;
     try {
       final repo = ref.read(projectRepositoryProvider);
       final status = await repo.getGenerationStatus(widget.projectId);
@@ -65,7 +69,20 @@ class _GenerationProgressScreenState extends ConsumerState<GenerationProgressScr
     } catch (e) {
       if (!mounted) return;
       setState(() => _error = e);
+    } finally {
+      _polling = false;
     }
+  }
+
+  Future<void> _pollAndSchedule() async {
+    await _poll();
+    if (!mounted ||
+        _status?.status == GenerationStatus.complete ||
+        _status?.status == GenerationStatus.failed) {
+      return;
+    }
+    _timer?.cancel();
+    _timer = Timer(AppConstants.generationPollInterval, _pollAndSchedule);
   }
 
   Future<void> _retry() async {
@@ -78,11 +95,12 @@ class _GenerationProgressScreenState extends ConsumerState<GenerationProgressScr
         _error = null;
       });
       _timer?.cancel();
-      _timer = Timer.periodic(AppConstants.generationPollInterval, (_) => _poll());
-      await _poll();
+      await _pollAndSchedule();
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Retry failed: $e')));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Retry failed: $e')));
       }
     } finally {
       if (mounted) setState(() => _retrying = false);
@@ -110,16 +128,16 @@ class _GenerationProgressScreenState extends ConsumerState<GenerationProgressScr
           child: status == null && _error == null
               ? const Center(child: CircularProgressIndicator())
               : status?.status == GenerationStatus.failed
-                  ? _FailureView(
-                      message: status?.error ?? 'Generation failed unexpectedly.',
-                      retrying: _retrying,
-                      onRetry: _retry,
-                    )
-                  : status?.status == GenerationStatus.complete
-                      ? _CompleteView(
-                          onOpen: () => context.go('/editor/${widget.projectId}'),
-                        )
-                      : _ProgressView(status: status, pollError: _error),
+              ? _FailureView(
+                  message: status?.error ?? 'Generation failed unexpectedly.',
+                  retrying: _retrying,
+                  onRetry: _retry,
+                )
+              : status?.status == GenerationStatus.complete
+              ? _CompleteView(
+                  onOpen: () => context.go('/editor/${widget.projectId}'),
+                )
+              : _ProgressView(status: status, pollError: _error),
         ),
       ),
     );
@@ -135,13 +153,19 @@ class _ProgressView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final currentStage = status?.stage ?? GenerationStage.script;
-    final currentIndex = _stageOrder.indexOf(currentStage).clamp(0, _stageOrder.length - 1);
+    final currentIndex = _stageOrder
+        .indexOf(currentStage)
+        .clamp(0, _stageOrder.length - 1);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        Icon(Icons.auto_awesome, size: 56, color: Theme.of(context).colorScheme.primary),
+        Icon(
+          Icons.auto_awesome,
+          size: 56,
+          color: Theme.of(context).colorScheme.primary,
+        ),
         const SizedBox(height: 16),
         Text(
           'Sit tight — this usually takes 1-2 minutes.',
@@ -155,8 +179,8 @@ class _ProgressView extends StatelessWidget {
             state: i < currentIndex
                 ? _StageState.done
                 : i == currentIndex
-                    ? _StageState.active
-                    : _StageState.pending,
+                ? _StageState.active
+                : _StageState.pending,
             progress: i == currentIndex ? status?.progress : null,
           ),
         if (pollError != null) ...[
@@ -186,11 +210,14 @@ class _StageRow extends StatelessWidget {
     final icon = switch (state) {
       _StageState.done => const Icon(Icons.check_circle, color: Colors.green),
       _StageState.active => const SizedBox(
-          width: 24,
-          height: 24,
-          child: CircularProgressIndicator(strokeWidth: 2.5),
-        ),
-      _StageState.pending => Icon(Icons.circle_outlined, color: Theme.of(context).disabledColor),
+        width: 24,
+        height: 24,
+        child: CircularProgressIndicator(strokeWidth: 2.5),
+      ),
+      _StageState.pending => Icon(
+        Icons.circle_outlined,
+        color: Theme.of(context).disabledColor,
+      ),
     };
 
     return Padding(
@@ -203,13 +230,20 @@ class _StageRow extends StatelessWidget {
             child: Text(
               stage.label,
               style: TextStyle(
-                fontWeight: state == _StageState.active ? FontWeight.w700 : FontWeight.normal,
-                color: state == _StageState.pending ? Theme.of(context).disabledColor : null,
+                fontWeight: state == _StageState.active
+                    ? FontWeight.w700
+                    : FontWeight.normal,
+                color: state == _StageState.pending
+                    ? Theme.of(context).disabledColor
+                    : null,
               ),
             ),
           ),
           if (state == _StageState.active && progress != null)
-            Text('${progress!.round()}%', style: Theme.of(context).textTheme.bodySmall),
+            Text(
+              '${progress!.round()}%',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
         ],
       ),
     );
@@ -217,7 +251,11 @@ class _StageRow extends StatelessWidget {
 }
 
 class _FailureView extends StatelessWidget {
-  const _FailureView({required this.message, required this.retrying, required this.onRetry});
+  const _FailureView({
+    required this.message,
+    required this.retrying,
+    required this.onRetry,
+  });
 
   final String message;
   final bool retrying;
@@ -230,9 +268,16 @@ class _FailureView extends StatelessWidget {
       children: [
         const Icon(Icons.error_outline, size: 56, color: Colors.red),
         const SizedBox(height: 16),
-        Text('Generation failed', style: Theme.of(context).textTheme.titleLarge),
+        Text(
+          'Generation failed',
+          style: Theme.of(context).textTheme.titleLarge,
+        ),
         const SizedBox(height: 8),
-        Text(message, textAlign: TextAlign.center, style: Theme.of(context).textTheme.bodyMedium),
+        Text(
+          message,
+          textAlign: TextAlign.center,
+          style: Theme.of(context).textTheme.bodyMedium,
+        ),
         const SizedBox(height: 24),
         FilledButton.icon(
           onPressed: retrying ? null : onRetry,
@@ -240,7 +285,10 @@ class _FailureView extends StatelessWidget {
               ? const SizedBox(
                   width: 18,
                   height: 18,
-                  child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: Colors.white,
+                  ),
                 )
               : const Icon(Icons.refresh),
           label: const Text('Retry generation'),
@@ -262,7 +310,10 @@ class _CompleteView extends StatelessWidget {
       children: [
         const Icon(Icons.check_circle, size: 56, color: Colors.green),
         const SizedBox(height: 16),
-        Text('Your draft is ready!', style: Theme.of(context).textTheme.titleLarge),
+        Text(
+          'Your draft is ready!',
+          style: Theme.of(context).textTheme.titleLarge,
+        ),
         const SizedBox(height: 8),
         Text(
           'Review the script, images, and voice, then render your video.',

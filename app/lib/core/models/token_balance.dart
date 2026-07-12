@@ -31,17 +31,27 @@ class TokenTransaction extends Equatable {
   final String? projectId;
   final DateTime createdAt;
 
-  factory TokenTransaction.fromJson(Map<String, dynamic> json) => TokenTransaction(
+  factory TokenTransaction.fromJson(Map<String, dynamic> json) =>
+      TokenTransaction(
         id: json['id'] as String,
         amount: (json['amount'] as num?)?.toInt() ?? 0,
         type: json['type'] as String? ?? '',
         description: json['description'] as String? ?? '',
         projectId: json['projectId'] as String?,
-        createdAt: DateTime.fromMillisecondsSinceEpoch((json['createdAt'] as num?)?.toInt() ?? 0),
+        createdAt: DateTime.fromMillisecondsSinceEpoch(
+          (json['createdAt'] as num?)?.toInt() ?? 0,
+        ),
       );
 
   @override
-  List<Object?> get props => [id, amount, type, description, projectId, createdAt];
+  List<Object?> get props => [
+    id,
+    amount,
+    type,
+    description,
+    projectId,
+    createdAt,
+  ];
 }
 
 /// `GET /tokens/cost-estimate?templateId&duration` response — an itemized
@@ -55,8 +65,15 @@ class CostEstimate extends Equatable {
   factory CostEstimate.fromJson(Map<String, dynamic> json) {
     final rawBreakdown = json['breakdown'] as Map<String, dynamic>? ?? {};
     return CostEstimate(
-      total: (json['total'] as num?)?.toInt() ?? 0,
-      breakdown: rawBreakdown.map((k, v) => MapEntry(k, (v as num).toInt())),
+      total:
+          (json['total'] as num?)?.toInt() ??
+          (json['generationTotal'] as num?)?.toInt() ??
+          0,
+      breakdown: Map<String, int>.fromEntries(
+        rawBreakdown.entries
+            .where((entry) => entry.value is num)
+            .map((entry) => MapEntry(entry.key, (entry.value as num).toInt())),
+      ),
     );
   }
 

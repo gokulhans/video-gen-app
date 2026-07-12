@@ -33,7 +33,10 @@ class TokenBalanceScreen extends ConsumerWidget {
                 padding: const EdgeInsets.all(20),
                 child: Column(
                   children: [
-                    Text('Balance', style: Theme.of(context).textTheme.titleMedium),
+                    Text(
+                      'Balance',
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
                     const SizedBox(height: 8),
                     balanceAsync.when(
                       data: (balance) => Text(
@@ -70,11 +73,15 @@ class TokenBalanceScreen extends ConsumerWidget {
                         (t) => ListTile(
                           contentPadding: EdgeInsets.zero,
                           leading: Icon(
-                            t.amount >= 0 ? Icons.add_circle_outline : Icons.remove_circle_outline,
+                            t.amount >= 0
+                                ? Icons.add_circle_outline
+                                : Icons.remove_circle_outline,
                             color: t.amount >= 0 ? Colors.green : Colors.red,
                           ),
                           title: Text(t.description),
-                          subtitle: Text(DateFormat.yMMMd().add_jm().format(t.createdAt)),
+                          subtitle: Text(
+                            DateFormat.yMMMd().add_jm().format(t.createdAt),
+                          ),
                           trailing: Text(
                             '${t.amount >= 0 ? '+' : ''}${t.amount}',
                             style: TextStyle(

@@ -19,16 +19,19 @@ class NotificationRepository {
   }
 
   Future<void> markRead(String id) {
-    return _api.patch<void>('/notifications/$id/read');
+    return _api.post<void>('/notifications/$id/read');
   }
 
   Future<void> markAllRead() {
-    return _api.patch<void>('/notifications/read-all');
+    return _api.post<void>('/notifications/read-all');
   }
 
-  Future<void> registerDevice({required String fcmToken, required String platform}) {
+  Future<void> registerDevice({
+    required String fcmToken,
+    required String platform,
+  }) {
     return _api.post<void>(
-      '/devices',
+      '/devices/register',
       body: {'fcmToken': fcmToken, 'platform': platform},
     );
   }

@@ -9,14 +9,18 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:ai_video_maker/theme.dart';
 
 void main() {
-  testWidgets('AppTheme builds light and dark ThemeData', (WidgetTester tester) async {
+  testWidgets('AppTheme builds light and dark ThemeData', (
+    WidgetTester tester,
+  ) async {
     expect(AppTheme.light.useMaterial3, isTrue);
     expect(AppTheme.dark.useMaterial3, isTrue);
     expect(AppTheme.light.brightness, Brightness.light);
     expect(AppTheme.dark.brightness, Brightness.dark);
   });
 
-  testWidgets('MaterialApp with AppTheme.light renders', (WidgetTester tester) async {
+  testWidgets('MaterialApp with AppTheme.light renders', (
+    WidgetTester tester,
+  ) async {
     await tester.pumpWidget(
       MaterialApp(
         theme: AppTheme.light,

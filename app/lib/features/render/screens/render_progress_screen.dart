@@ -24,7 +24,10 @@ class RenderProgressScreen extends ConsumerWidget {
     });
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Rendering'), automaticallyImplyLeading: false),
+      appBar: AppBar(
+        title: const Text('Rendering'),
+        automaticallyImplyLeading: false,
+      ),
       body: Padding(
         padding: const EdgeInsets.all(24),
         child: jobAsync.when(
@@ -38,9 +41,16 @@ class RenderProgressScreen extends ConsumerWidget {
             return Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(Icons.movie_filter_outlined, size: 56, color: Theme.of(context).colorScheme.primary),
+                Icon(
+                  Icons.movie_filter_outlined,
+                  size: 56,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
                 const SizedBox(height: 24),
-                Text(_statusLabel(job.status), style: Theme.of(context).textTheme.titleLarge),
+                Text(
+                  _statusLabel(job.status),
+                  style: Theme.of(context).textTheme.titleLarge,
+                ),
                 const SizedBox(height: 24),
                 LinearProgressIndicator(value: job.progress / 100),
                 const SizedBox(height: 8),
@@ -49,20 +59,21 @@ class RenderProgressScreen extends ConsumerWidget {
             );
           },
           loading: () => const Center(child: CircularProgressIndicator()),
-          error: (error, _) => _FailureView(error: '$error', onRetry: () => context.pop()),
+          error: (error, _) =>
+              _FailureView(error: '$error', onRetry: () => context.pop()),
         ),
       ),
     );
   }
 
   String _statusLabel(RenderStatus status) => switch (status) {
-        RenderStatus.queued => 'Queued...',
-        RenderStatus.starting => 'Starting renderer...',
-        RenderStatus.rendering => 'Rendering your video...',
-        RenderStatus.uploading => 'Uploading final video...',
-        RenderStatus.completed => 'Done!',
-        RenderStatus.failed => 'Failed',
-      };
+    RenderStatus.queued => 'Queued...',
+    RenderStatus.starting => 'Starting renderer...',
+    RenderStatus.rendering => 'Rendering your video...',
+    RenderStatus.uploading => 'Uploading final video...',
+    RenderStatus.completed => 'Done!',
+    RenderStatus.failed => 'Failed',
+  };
 }
 
 class _FailureView extends StatelessWidget {
@@ -83,7 +94,11 @@ class _FailureView extends StatelessWidget {
           const SizedBox(height: 8),
           Text(error, textAlign: TextAlign.center),
           const SizedBox(height: 24),
-          FilledButton.icon(onPressed: onRetry, icon: const Icon(Icons.refresh), label: const Text('Back')),
+          FilledButton.icon(
+            onPressed: onRetry,
+            icon: const Icon(Icons.refresh),
+            label: const Text('Back'),
+          ),
         ],
       ),
     );

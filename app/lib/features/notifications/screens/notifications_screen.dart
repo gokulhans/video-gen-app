@@ -39,7 +39,9 @@ class NotificationsScreen extends ConsumerWidget {
                 builder: (context, constraints) => SingleChildScrollView(
                   physics: const AlwaysScrollableScrollPhysics(),
                   child: ConstrainedBox(
-                    constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                    constraints: BoxConstraints(
+                      minHeight: constraints.maxHeight,
+                    ),
                     child: const Center(child: Text('No notifications yet')),
                   ),
                 ),
@@ -55,7 +57,11 @@ class NotificationsScreen extends ConsumerWidget {
                   leading: _iconFor(notification.type),
                   title: Text(
                     notification.title,
-                    style: TextStyle(fontWeight: notification.isRead ? FontWeight.normal : FontWeight.bold),
+                    style: TextStyle(
+                      fontWeight: notification.isRead
+                          ? FontWeight.normal
+                          : FontWeight.bold,
+                    ),
                   ),
                   subtitle: Text(notification.message),
                   trailing: Text(
@@ -64,7 +70,9 @@ class NotificationsScreen extends ConsumerWidget {
                   ),
                   onTap: () async {
                     if (!notification.isRead) {
-                      await ref.read(notificationRepositoryProvider).markRead(notification.id);
+                      await ref
+                          .read(notificationRepositoryProvider)
+                          .markRead(notification.id);
                       ref.invalidate(notificationListProvider);
                     }
                     if (notification.projectId != null && context.mounted) {
@@ -83,9 +91,18 @@ class NotificationsScreen extends ConsumerWidget {
   }
 
   Widget _iconFor(NotificationType type) => switch (type) {
-        NotificationType.renderComplete => const Icon(Icons.check_circle_outline, color: Colors.green),
-        NotificationType.renderFailed => const Icon(Icons.error_outline, color: Colors.red),
-        NotificationType.generationComplete => const Icon(Icons.auto_awesome, color: Colors.purple),
-        NotificationType.system => const Icon(Icons.info_outline),
-      };
+    NotificationType.renderComplete => const Icon(
+      Icons.check_circle_outline,
+      color: Colors.green,
+    ),
+    NotificationType.renderFailed => const Icon(
+      Icons.error_outline,
+      color: Colors.red,
+    ),
+    NotificationType.generationComplete => const Icon(
+      Icons.auto_awesome,
+      color: Colors.purple,
+    ),
+    NotificationType.system => const Icon(Icons.info_outline),
+  };
 }

@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import 'core/constants.dart';
+import 'firebase_options.dart';
 import 'features/notifications/services/fcm_service.dart';
 import 'router.dart';
 import 'theme.dart';
@@ -11,14 +13,21 @@ import 'theme.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Requires `google-services.json` (Android) / `GoogleService-Info.plist`
-  // (iOS) to be added per README.md. Guarded so the app still runs (minus
-  // push notifications) if Firebase hasn't been configured yet in dev.
-  try {
-    await Firebase.initializeApp();
-    FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
-  } catch (e) {
-    debugPrint('Firebase.initializeApp() failed (is google-services.json present?): $e');
+  if (AppConstants.enableFirebase) {
+    // Requires `google-services.json` (Android) / `GoogleService-Info.plist`
+    // (iOS). Set ENABLE_FIREBASE=false or use a debug build to skip in dev.
+    try {
+      await Firebase.initializeApp(
+        options: DefaultFirebaseOptions.currentPlatform,
+      );
+      FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
+    } catch (e) {
+      debugPrint(
+        'Firebase.initializeApp() failed (is google-services.json present?): $e',
+      );
+    }
+  } else {
+    debugPrint('Firebase disabled (debug build or ENABLE_FIREBASE=false)');
   }
 
   runApp(const ProviderScope(child: AiVideoMakerApp()));
@@ -35,7 +44,9 @@ class _AiVideoMakerAppState extends ConsumerState<AiVideoMakerApp> {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _initFcm());
+    if (AppConstants.enableFirebase) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _initFcm());
+    }
   }
 
   Future<void> _initFcm() async {
