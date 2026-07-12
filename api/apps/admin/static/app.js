@@ -342,6 +342,7 @@ async function renderStats(el) {
 
 async function renderUsers(el) {
   const s = state.users;
+  const roles = await api("/users/roles");
   el.innerHTML = `
     <div class="panel">
       <h2>Users</h2>
@@ -380,6 +381,7 @@ async function renderUsers(el) {
           <td>
             <div class="row-actions">
               <button class="secondary" data-act="grant">Grant tokens</button>
+              <button class="secondary" data-act="roles">Manage roles</button>
               <button class="secondary" data-act="toggle-admin">${u.isAdmin ? "Revoke admin" : "Make admin"}</button>
             </div>
           </td>
@@ -406,6 +408,14 @@ async function renderUsers(el) {
               loadUsers();
             },
           });
+        });
+      });
+      body.querySelectorAll('button[data-act="roles"]').forEach((btn) => {
+        btn.addEventListener("click", async () => {
+          const id = btn.closest("tr").dataset.id;
+          const assigned = await api(`/users/${id}/roles`);
+          const selected = new Set(assigned.roleIds);
+          openModal("Assign least-privilege roles", `<div class="security-note">Role changes take effect on the next request and are written atomically with an audit event.</div>${roles.map((role) => `<div class="checkbox-field"><input type="checkbox" data-role-id="${escapeHtml(role.id)}" id="role-${escapeHtml(role.id)}" ${selected.has(role.id) ? "checked" : ""}><label for="role-${escapeHtml(role.id)}"><strong>${escapeHtml(role.name)}</strong><br><span class="mono">${escapeHtml(role.permissions.join(", "))}</span></label></div>`).join("")}<div class="field"><label>Required change reason</label><textarea data-field="reason" required></textarea></div>`, { submitLabel: "Replace assigned roles", onSubmit: async (modal, close) => { const roleIds = [...modal.querySelectorAll("[data-role-id]:checked")].map((input) => input.dataset.roleId); await api(`/users/${id}/roles`, { method: "POST", body: JSON.stringify({ roleIds, reason: modalValue(modal,"reason") }) }); close(); toast("Roles updated"); loadUsers(); } });
         });
       });
       body.querySelectorAll('button[data-act="toggle-admin"]').forEach((btn) => {
@@ -777,7 +787,11 @@ async function renderCategories(el) {
 }
 
 const P_VIDEO_DIGEST = "68b33d8ba1189a1a997abf2c09edc5bbb90d6cfa239befbf9c903bcfee7f9a59";
-const DEFAULT_INPUT_SCHEMA = { version: 1, fields: [{ id: "input_prompt", key: "prompt", label: "Describe your video", helpText: "Include subject, setting, camera movement, lighting, and action.", required: true, order: 10, type: "long_text", minLength: 3, maxLength: 5000 }] };
+const DEFAULT_INPUT_SCHEMA = { version: 1, fields: [
+  { id: "input_prompt", key: "prompt", label: "Describe your video", helpText: "Include subject, setting, camera movement, lighting, and action.", required: true, order: 10, type: "long_text", minLength: 3, maxLength: 5000 },
+  { id: "input_duration", key: "durationSec", label: "Duration", helpText: "Fixed to the lowest-cost test duration.", required: true, order: 20, type: "select", multiple: false, options: [{ value: 1, label: "1 second" }] },
+  { id: "input_resolution", key: "resolution", label: "Resolution", helpText: "Fixed to the test resolution.", required: true, order: 30, type: "select", multiple: false, options: [{ value: "720p", label: "HD · 720p" }] }
+] };
 const DEFAULT_PVIDEO_CONFIG = { provider: "replicate", model: "prunaai/p-video", modelVersion: P_VIDEO_DIGEST, mode: "test", defaults: { durationSec: 1, aspectRatio: "16:9", resolution: "720p", fps: 24, draft: true, promptUpsampling: true, includeGeneratedAudio: false } };
 
 async function openTemplateDraft(template, refresh) {
@@ -789,7 +803,7 @@ async function openTemplateDraft(template, refresh) {
   if (!pinnedVersion || !testPrice) { toast("The published Replicate P-Video test model and 5-credit test price must be configured first.", "error"); return; }
   const publishedPrices = [testPrice]; let previous = null;
   if (template?.versions?.length) { const latest = [...template.versions].sort((a,b) => b.version-a.version)[0]; previous = await api(`/templates/versions/${latest.id}`); }
-  const config = previous?.version?.configSnapshot || DEFAULT_PVIDEO_CONFIG; const inputSchema = config.inputSchema || DEFAULT_INPUT_SCHEMA; const capabilities = previous?.version?.capabilities || { durations: [1,5,10,20], aspectRatios: ["16:9","9:16","1:1"], resolutions: ["720p","1080p"], supportsImage: true, supportsAudio: true };
+  const config = previous?.version?.configSnapshot || DEFAULT_PVIDEO_CONFIG; const inputSchema = config.inputSchema || DEFAULT_INPUT_SCHEMA; const capabilities = previous?.version?.capabilities || { durations: [1], aspectRatios: ["16:9","9:16","1:1"], resolutions: ["720p"], supportsImage: true, supportsAudio: false };
   openModal(template ? `Create next draft for ${template.name}` : "New template draft", `${template ? "" : '<div class="field"><label>Template name</label><input data-field="name" required></div><div class="field"><label>Slug</label><input data-field="slug" placeholder="product-spotlight" required></div><div class="field"><label>Category</label><select data-field="categoryId"><option value="">None</option>'+categories.map((c)=>`<option value="${c.id}">${escapeHtml(c.name)}</option>`).join("")+'</select></div>'}<div class="field"><label>Version display name</label><input data-field="displayName" value="${escapeHtml(previous?.version?.displayName || template?.name || "")}" required></div><div class="field"><label>Description</label><textarea data-field="description">${escapeHtml(previous?.version?.description || "")}</textarea></div><div class="field"><label>Published pricing binding</label><select data-field="pricingVersionId" required>${publishedPrices.map((p)=>`<option value="${p.id}" ${p.id === previous?.version?.pricingVersionId ? "selected" : ""}>${escapeHtml(p.priceKey)} · v${p.version} · ${p.creditAmount} credits</option>`).join("")}</select></div><div class="field"><label>Capabilities JSON</label><textarea data-field="capabilities" rows="6">${escapeHtml(JSON.stringify(capabilities,null,2))}</textarea></div><div class="field"><label>P-Video configuration JSON</label><textarea data-field="configSnapshot" rows="10">${escapeHtml(JSON.stringify(config,null,2))}</textarea></div><div class="field"><label>Restricted input schema JSON</label><textarea data-field="inputSchema" rows="10">${escapeHtml(JSON.stringify(inputSchema,null,2))}</textarea></div><div class="field"><label>Required change reason</label><textarea data-field="reason" required></textarea></div><div class="security-note">Provider binding is locked to Replicate · prunaai/p-video · ${P_VIDEO_DIGEST.slice(0,12)}… for the test path.</div>`, { submitLabel: "Create draft version", onSubmit: async (m, close) => { if (!pinnedVersion) throw new Error("Pinned published P-Video model version is missing from the registry"); const common = { displayName: modalValue(m,"displayName"), description: modalValue(m,"description") || null, previewAssetKey: null, pipelineType: "p_video", pricingVersionId: modalValue(m,"pricingVersionId"), capabilities: parsedJson(m,"capabilities"), configSnapshot: parsedJson(m,"configSnapshot"), inputSchema: parsedJson(m,"inputSchema"), providerBindings: [{ providerModelVersionId: pinnedVersion.id, priority: 0, rolloutPercent: 100, inputMapping: { prompt:"prompt",imageUrl:"image",audioUrl:"audio",lastFrameImageUrl:"last_frame_image",durationSec:"duration",aspectRatio:"aspect_ratio",resolution:"resolution",fps:"fps",draft:"draft",promptUpsampling:"prompt_upsampling",includeGeneratedAudio:"save_audio" }, isActive: true }], reason: modalValue(m,"reason") }; const body = template ? common : { ...common, name: modalValue(m,"name"), slug: modalValue(m,"slug"), categoryIds: modalValue(m,"categoryId") ? [modalValue(m,"categoryId")] : [] }; await api(template ? `/templates/${template.id}/versions` : "/templates", { method:"POST", body:JSON.stringify(body) }); close(); toast("Template draft created"); refresh(); } });
 }
 

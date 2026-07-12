@@ -4,6 +4,11 @@ Hono-based Cloudflare Worker exposing the public REST API (`/api/v1/*`) and
 the better-auth handler (`/api/auth/*`). Binding names match
 `../../CONTRACTS.md` exactly.
 
+The machine-readable OpenAPI 3.1 contract is available without authentication
+at `GET /openapi.json`. It is assembled from the shared Zod contracts in
+`packages/shared/src/openapi.ts`; clients must use the versioned `/api/v1`
+server URL from that document.
+
 ## Bindings to create (once per environment)
 
 ```bash
@@ -19,10 +24,14 @@ wrangler kv namespace create KV
 wrangler r2 bucket create assets
 wrangler r2 bucket create renders
 wrangler r2 bucket create uploads
+wrangler r2 bucket create exports
 
 # Queue (producer here, consumer lives in apps/render)
 wrangler queues create render-queue
 ```
+
+Keep all four buckets private. The API issues short-lived signed URLs; do not
+enable public R2 access for user uploads, exports, masters, or renders.
 
 The `workflows` bindings (`GENERATION_PIPELINE`, `REGEN_IMAGE`, `REGEN_VOICE`)
 and the `RENDER_SERVICE` service binding point at the `pipeline` and `render`
@@ -59,6 +68,7 @@ wrangler secret put R2_SECRET_ACCESS_KEY
 wrangler secret put GOOGLE_PLAY_SERVICE_ACCOUNT_JSON
 wrangler secret put GOOGLE_PLAY_PACKAGE_NAME
 wrangler secret put MEDIA_INGEST_SIGNING_SECRET # same value on api + pipeline
+wrangler secret put DELETION_TOMBSTONE_SECRET
 ```
 
 ## Deploy
@@ -128,7 +138,8 @@ All under `/api/v1`, Bearer session required (better-auth), zod-validated,
     script + voice + images (`scenes ≈ durationSec/4`) + both render tiers
     from the `token_costs` table.
   - `POST /tokens/purchase/verify` — `{ productId, purchaseToken,
-    tokenAmount }`; verifies with Android Publisher API, credits tokens via
+    }`; verifies and acknowledges with Android Publisher API, then credits the
+    server-owned amount via
     `db.batch`, idempotent on `purchaseToken`.
 - `templates`
   - `GET /templates` — KV (`templates:v1`) first, D1 (`isActive`) fallback +

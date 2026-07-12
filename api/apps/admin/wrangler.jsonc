@@ -37,5 +37,16 @@
 		"enabled": true,
 		"logs": { "head_sampling_rate": 1 },
 		"traces": { "enabled": true, "head_sampling_rate": 0.05 }
+	},
+	"env": {
+		"staging": {
+			"name": "admin-staging",
+			"assets": { "directory": "./static", "binding": "ASSETS", "run_worker_first": ["/api/*"] },
+			"d1_databases": [{ "binding": "DB", "database_name": "ai-video-db-staging", "database_id": "4e5232f4-2277-4e1f-803c-daf9ec149bd0", "migrations_dir": "../../packages/db/migrations" }],
+			"kv_namespaces": [{ "binding": "KV", "id": "dd78aadb20cf44178b5bcb83b8b92a7a" }],
+			"r2_buckets": [{ "binding": "UPLOADS_BUCKET", "bucket_name": "uploads-staging" }],
+			"vars": { "AUTH_API_URL": "https://api-staging.gokulhansv.workers.dev/api/auth" },
+			"observability": { "enabled": true, "logs": { "head_sampling_rate": 1 }, "traces": { "enabled": true, "head_sampling_rate": 0.05 } }
+		}
 	}
 }

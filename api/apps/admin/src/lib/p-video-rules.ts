@@ -15,6 +15,7 @@ export type PVideoPublishState = {
 	defaultsValid: boolean;
 	mode: unknown;
 	testDefaultsValid: boolean;
+	testSurfaceValid: boolean;
 	pricingKey: string | null;
 	creditAmount: number | null;
 };
@@ -28,6 +29,7 @@ export function validatePVideoPublishState(state: PVideoPublishState): string[] 
 	if (!state.defaultsValid) errors.push("P-Video defaults are invalid or incomplete");
 	if (state.mode === "test") {
 		if (!state.testDefaultsValid) errors.push("P-Video test mode must use 1 second, 720p, 24 fps, draft rendering, prompt upsampling, and no generated audio");
+		if (!state.testSurfaceValid) errors.push("P-Video test mode may only expose 1 second, 720p, and no audio input");
 		if (state.pricingKey !== P_VIDEO_TEST_PRICE_KEY || state.creditAmount !== P_VIDEO_TEST_CREDITS) errors.push("P-Video test mode must use the pinned 5-credit test price");
 	}
 	return errors;

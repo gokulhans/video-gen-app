@@ -237,6 +237,7 @@ export const playPurchases = sqliteTable("play_purchases", {
 	purchaseTokenHash: text("purchase_token_hash").notNull().unique(),
 	orderId: text("order_id"),
 	tokenAmount: integer("token_amount").notNull(),
+	acknowledgedAt: ts("acknowledged_at"),
 	createdAt: ts("created_at").notNull().$defaultFn(now),
 });
 

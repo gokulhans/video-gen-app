@@ -149,6 +149,17 @@ class ApiClient {
     ).download(url, savePath);
   }
 
+  /// Reads a short-lived, server-signed object URL without attaching app auth.
+  Future<dynamic> getSignedJson(String url) async {
+    final response = await Dio(
+      BaseOptions(
+        connectTimeout: const Duration(seconds: 20),
+        receiveTimeout: const Duration(minutes: 2),
+      ),
+    ).get<dynamic>(url);
+    return response.data;
+  }
+
   /// Uploads bytes to a server-issued, short-lived URL. This intentionally
   /// uses an isolated Dio instance so application auth is never sent to R2.
   Future<void> putPresigned(

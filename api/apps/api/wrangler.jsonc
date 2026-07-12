@@ -105,10 +105,42 @@
 	"vars": {
 		"AI_GATEWAY_BASE_URL": "https://gateway.ai.cloudflare.com/v1/58f07fb13c26e83dd6109d957083478d/ai-video",
 		"APP_BASE_URL": "https://api.gokulhansv.workers.dev",
-		"ALLOWED_ORIGINS": "",
+		"ALLOWED_ORIGINS": "https://aividgen-app.gokulhansv.workers.dev,https://admin.gokulhansv.workers.dev",
 		// Set this to the unique code from the Cloudflare Stream dashboard.
 		"STREAM_CUSTOMER_CODE": "replace-with-stream-customer-code",
-		"PLAY_TOKEN_PACKS_JSON": "{\"tokens_500\":500,\"tokens_1500\":1500,\"tokens_5000\":5000}"
+	"PLAY_TOKEN_PACKS_JSON": "{\"tokens_500\":500,\"tokens_1500\":1500,\"tokens_5000\":5000}"
+	},
+	"env": {
+		"staging": {
+			"name": "api-staging",
+			"vars": {
+				"AI_GATEWAY_BASE_URL": "https://gateway.ai.cloudflare.com/v1/58f07fb13c26e83dd6109d957083478d/ai-video-staging",
+				"APP_BASE_URL": "https://api-staging.gokulhansv.workers.dev",
+				"ALLOWED_ORIGINS": "https://zellyo-app-staging.gokulhansv.workers.dev",
+				"STREAM_CUSTOMER_CODE": "replace-with-staging-stream-customer-code",
+				"PLAY_TOKEN_PACKS_JSON": "{\"tokens_500\":500,\"tokens_1500\":1500,\"tokens_5000\":5000}"
+			},
+			"d1_databases": [{ "binding": "DB", "database_name": "ai-video-db-staging", "database_id": "4e5232f4-2277-4e1f-803c-daf9ec149bd0", "migrations_dir": "../../packages/db/migrations" }],
+			"kv_namespaces": [{ "binding": "KV", "id": "dd78aadb20cf44178b5bcb83b8b92a7a" }],
+			"r2_buckets": [
+				{ "binding": "ASSETS_BUCKET", "bucket_name": "assets-staging" },
+				{ "binding": "RENDERS_BUCKET", "bucket_name": "renders-staging" },
+				{ "binding": "UPLOADS_BUCKET", "bucket_name": "uploads-staging" },
+				{ "binding": "EXPORTS_BUCKET", "bucket_name": "exports-staging" }
+			],
+			"queues": { "producers": [{ "binding": "RENDER_QUEUE", "queue": "render-queue-staging" }] },
+			"stream": { "binding": "STREAM" },
+			"workflows": [
+				{ "binding": "GENERATION_PIPELINE", "name": "generation-pipeline-staging", "class_name": "GenerationPipeline", "script_name": "pipeline-staging" },
+				{ "binding": "P_VIDEO_GENERATION", "name": "p-video-generation-staging", "class_name": "PVideoGenerationWorkflow", "script_name": "pipeline-staging" },
+				{ "binding": "REGEN_IMAGE", "name": "regen-image-staging", "class_name": "RegenerateSceneImage", "script_name": "pipeline-staging" },
+				{ "binding": "REGEN_VOICE", "name": "regen-voice-staging", "class_name": "RegenerateVoiceover", "script_name": "pipeline-staging" },
+				{ "binding": "REWRITE_SCRIPT", "name": "rewrite-script-staging", "class_name": "RewriteScript", "script_name": "pipeline-staging" },
+				{ "binding": "DATA_EXPORT_WORKFLOW", "name": "data-export-staging", "class_name": "DataExportWorkflow", "script_name": "pipeline-staging" },
+				{ "binding": "ACCOUNT_DELETION_WORKFLOW", "name": "account-deletion-staging", "class_name": "AccountDeletionWorkflow", "script_name": "pipeline-staging" }
+			],
+			"services": [{ "binding": "RENDER_SERVICE", "service": "render-staging" }]
+		}
 	}
 
 	// Secrets (set via `wrangler secret put <NAME>`, NOT stored here):

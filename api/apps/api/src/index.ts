@@ -29,8 +29,15 @@ import { accountLifecycle } from "./routes/account";
 import { characters } from "./routes/characters";
 import { sweepStaleCharacterUploads } from "./services/character-upload-cleanup";
 import { sweepAssetCleanupOutbox } from "./services/asset-cleanup-outbox";
+import { openApiDocument } from "@app/shared/openapi";
+import { reconcileExpiredCreditReservations } from "./services/credit-reconciliation";
 
 const app = new Hono<AppEnv>();
+
+// Public, versioned contract for mobile/admin clients and CI compatibility
+// checks. It is assembled from the shared Zod schemas at module load and does
+// not expose provider-native payloads or secrets.
+app.get("/openapi.json", (c) => c.json(openApiDocument));
 
 app.use("*", async (c, next) => {
 	const requestId = c.req.header("cf-ray") ?? crypto.randomUUID();
@@ -201,6 +208,10 @@ export { app };
 export default {
 	fetch: app.fetch,
 	scheduled(_controller: ScheduledController, env: AppEnv["Bindings"], ctx: ExecutionContext) {
-		ctx.waitUntil(Promise.all([sweepStaleCharacterUploads(env),sweepAssetCleanupOutbox(env)]));
+		ctx.waitUntil(Promise.all([
+			sweepStaleCharacterUploads(env),
+			sweepAssetCleanupOutbox(env),
+			reconcileExpiredCreditReservations(env.DB).then((result) => console.log(JSON.stringify({ event: "credit_reservation_reconciliation", ...result }))),
+		]));
 	},
 };

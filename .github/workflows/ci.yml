@@ -87,6 +87,14 @@ jobs:
         if: matrix.worker == 'render'
         run: pnpm exec wrangler deploy --dry-run --containers-rollout=none --outdir .wrangler/ci-dry-run
         working-directory: api/apps/render
+      - name: Validate isolated staging bindings
+        if: matrix.worker != 'render'
+        run: pnpm exec wrangler deploy --env staging --dry-run --outdir .wrangler/ci-staging-dry-run
+        working-directory: api/apps/${{ matrix.worker }}
+      - name: Validate isolated staging render bindings
+        if: matrix.worker == 'render'
+        run: pnpm exec wrangler deploy --env staging --dry-run --containers-rollout=none --outdir .wrangler/ci-staging-dry-run
+        working-directory: api/apps/render
       - name: Build renderer container image locally
         if: matrix.worker == 'render'
         run: docker build --tag ai-video-renderer:ci containers/renderer
@@ -136,3 +144,5 @@ jobs:
         working-directory: api
       - run: pnpm audit --prod --audit-level high
         working-directory: api
+      - name: Validate staging manifest guard
+        run: node scripts/validate-staging-manifest.mjs docs/staging-resources.example.json

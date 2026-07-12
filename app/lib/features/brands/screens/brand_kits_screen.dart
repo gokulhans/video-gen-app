@@ -15,15 +15,23 @@ final brandKitsProvider = FutureProvider.autoDispose<List<Brand>>(
   (ref) => ref.watch(brandRepositoryProvider).listBrands(),
 );
 
-class BrandKitsScreen extends ConsumerWidget {
+class BrandKitsScreen extends ConsumerStatefulWidget {
   const BrandKitsScreen({super.key});
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<BrandKitsScreen> createState() => _BrandKitsScreenState();
+}
+
+class _BrandKitsScreenState extends ConsumerState<BrandKitsScreen> {
+  bool _saving = false;
+  Future<void> Function()? _pendingRetry;
+
+  @override
+  Widget build(BuildContext context) {
     final brands = ref.watch(brandKitsProvider);
     return Scaffold(
       appBar: AppBar(title: const Text('Brand kits')),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _showEditor(context, ref),
+        onPressed: _saving ? null : () => _showEditor(context, ref),
         icon: const Icon(Icons.add),
         label: const Text('New kit'),
       ),
@@ -54,7 +62,9 @@ class BrandKitsScreen extends ConsumerWidget {
               itemCount: items.length,
               itemBuilder: (context, index) => _BrandCard(
                 brand: items[index],
-                onEdit: () => _showEditor(context, ref, items[index]),
+                onEdit: () {
+                  if (!_saving) _showEditor(context, ref, items[index]);
+                },
                 onArchive: () async {
                   await ref
                       .read(brandRepositoryProvider)
@@ -232,6 +242,10 @@ class BrandKitsScreen extends ConsumerWidget {
     );
     String? assetId;
     try {
+      setState(() {
+        _saving = true;
+        _pendingRetry = null;
+      });
       if (logoBytes != null) {
         final upload = await ref
             .read(assetRepositoryProvider)
@@ -239,38 +253,70 @@ class BrandKitsScreen extends ConsumerWidget {
               kind: 'image',
               contentType: contentType!,
               bytes: logoBytes!,
+              purpose: 'brand_logo',
             );
         assetId = upload.assetId;
       }
       final idempotencyKey = const Uuid().v4();
+      final repository = ref.read(brandRepositoryProvider);
       if (brand == null) {
-        await ref
-            .read(brandRepositoryProvider)
-            .createBrand(
-              value,
-              logoAssetId: assetId,
-              idempotencyKey: idempotencyKey,
-            );
+        _pendingRetry = () => repository.createBrand(
+          value,
+          logoAssetId: assetId,
+          idempotencyKey: idempotencyKey,
+        );
       } else {
-        await ref
-            .read(brandRepositoryProvider)
-            .updateBrand(
-              brand.id,
-              value,
-              logoAssetId: assetId,
-              idempotencyKey: idempotencyKey,
-            );
+        _pendingRetry = () => repository.updateBrand(
+          brand.id,
+          value,
+          logoAssetId: assetId,
+          idempotencyKey: idempotencyKey,
+        );
       }
+      await _pendingRetry!();
+      _pendingRetry = null;
     } catch (error) {
       // The mutation may have committed before a response was lost. Its stable
       // idempotency key and the server cleanup outbox own reconciliation.
       if (context.mounted)
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Brand kit could not be saved: $error')),
+          SnackBar(
+            content: Text('Brand kit save was not confirmed: $error'),
+            action: _pendingRetry == null
+                ? null
+                : SnackBarAction(label: 'Retry safely', onPressed: _retrySave),
+          ),
         );
       return;
+    } finally {
+      if (mounted) setState(() => _saving = false);
     }
     ref.invalidate(brandKitsProvider);
+  }
+
+  Future<void> _retrySave() async {
+    final retry = _pendingRetry;
+    if (retry == null || _saving) return;
+    setState(() => _saving = true);
+    try {
+      await retry();
+      _pendingRetry = null;
+      ref.invalidate(brandKitsProvider);
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Brand kit save is still unconfirmed: $error'),
+            action: SnackBarAction(
+              label: 'Retry safely',
+              onPressed: _retrySave,
+            ),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
   }
 }
 

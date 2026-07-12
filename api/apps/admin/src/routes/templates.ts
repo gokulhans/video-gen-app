@@ -111,6 +111,27 @@ app.post("/versions/:versionId/publish", async (c) => {
 	const requiredDefaults = ["durationSec", "aspectRatio", "resolution", "fps", "draft", "promptUpsampling", "includeGeneratedAudio"].every((key) => Object.hasOwn(defaults, key));
 	const binding = bindings[0];
 	const normalized = normalizedDefaults.success ? normalizedDefaults.data : null;
+	const parsedInputSchema = TemplateInputSchema.safeParse(config?.inputSchema);
+	const capabilities = version.capabilities && typeof version.capabilities === "object" && !Array.isArray(version.capabilities)
+		? version.capabilities as Record<string, unknown>
+		: {};
+	const durationField = parsedInputSchema.success ? parsedInputSchema.data.fields.find((field) => field.key === "durationSec") : undefined;
+	const resolutionField = parsedInputSchema.success ? parsedInputSchema.data.fields.find((field) => field.key === "resolution") : undefined;
+	const testSurfaceValid = parsedInputSchema.success
+		&& !parsedInputSchema.data.fields.some((field) => field.type === "audio" || field.key === "audioUrl" || field.key === "includeGeneratedAudio")
+		&& durationField?.type === "select"
+		&& durationField.options.length === 1
+		&& durationField.options[0]?.value === 1
+		&& resolutionField?.type === "select"
+		&& resolutionField.options.length === 1
+		&& resolutionField.options[0]?.value === "720p"
+		&& Array.isArray(capabilities.durations)
+		&& capabilities.durations.length === 1
+		&& capabilities.durations[0] === 1
+		&& Array.isArray(capabilities.resolutions)
+		&& capabilities.resolutions.length === 1
+		&& capabilities.resolutions[0] === "720p"
+		&& capabilities.supportsAudio === false;
 	const testDefaultsValid = normalized !== null
 		&& normalized.durationSec === 1
 		&& normalized.resolution === "720p"
@@ -118,7 +139,7 @@ app.post("/versions/:versionId/publish", async (c) => {
 		&& normalized.draft === true
 		&& normalized.promptUpsampling === true
 		&& normalized.includeGeneratedAudio === false;
-	errors.push(...validatePVideoPublishState({ pipelineType: version.pipelineType, providerKey: binding?.providerKey ?? null, modelKey: binding?.modelKey ?? null, modelVersionRef: binding?.modelVersionRef ?? null, configProvider: config.provider, configModel: config.model, configModelVersion: config.modelVersion, defaultsValid: normalizedDefaults.success && requiredDefaults, mode: config.mode, testDefaultsValid, pricingKey: pricing?.priceKey ?? null, creditAmount: pricing?.creditAmount ?? null }));
+	errors.push(...validatePVideoPublishState({ pipelineType: version.pipelineType, providerKey: binding?.providerKey ?? null, modelKey: binding?.modelKey ?? null, modelVersionRef: binding?.modelVersionRef ?? null, configProvider: config.provider, configModel: config.model, configModelVersion: config.modelVersion, defaultsValid: normalizedDefaults.success && requiredDefaults, mode: config.mode, testDefaultsValid, testSurfaceValid, pricingKey: pricing?.priceKey ?? null, creditAmount: pricing?.creditAmount ?? null }));
 	if (version.pipelineType === "p_video" && bindings.length !== 1) errors.push("P-Video requires exactly one active pinned model binding");
 	if (errors.length) return c.json(err("PUBLISH_VALIDATION_FAILED", errors.join("; ")), 409);
 	const now = Date.now();

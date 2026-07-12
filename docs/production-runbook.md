@@ -10,7 +10,8 @@ Create independent `staging` and `production` resources for D1, KV, R2,
 Queues/DLQs, Stream libraries, Workers, Workflows, Durable Objects, Containers,
 AI Gateway, Firebase, Google OAuth/Play, and Replicate credentials. Use distinct
 Worker names and hostnames (`*-staging`), and distinct R2 API tokens restricted
-to the three buckets in that environment. A staging API must never bind the
+to the four private buckets (`assets`, `uploads`, `renders`, and `exports`) in
+that environment. A staging API must never bind the
 production D1 database, Stream library, queue, or R2 bucket.
 
 The committed Wrangler files currently identify one live resource set and do
@@ -18,6 +19,10 @@ not yet define named staging/production environments. Before the first staging
 deployment, add environment-specific IDs and names to every Worker config and
 verify that no staging binding ID equals its production counterpart. Real
 staging D1/KV/R2/Queue/Stream identifiers are an external provisioning gap.
+
+Follow [`staging-provisioning.md`](staging-provisioning.md) and validate the
+private manifest with `node scripts/validate-staging-manifest.mjs` before
+creating any staging Worker config.
 
 ## Secrets and non-secret variables
 
@@ -40,7 +45,8 @@ also point to the same environment.
 
 ## Release gates
 
-The CI workflow must pass Node typechecks/tests, admin/container syntax checks,
+The CI workflow must pass Node typechecks/tests, OpenAPI contract generation,
+admin/container syntax checks,
 local D1 migrations plus seed and `foreign_key_check`, all Worker dry-runs,
 generated binding checks, Flutter format/analyze/tests/debug build, dependency
 audit, and secret scanning. Dry-runs are local bundle validation and require no
@@ -97,6 +103,37 @@ retention/account-deletion policy and a D1 tombstone/audit record. The current
 key layout does not isolate all pending/rejected uploads into a disposable
 prefix, so aggressive automatic deletion is a follow-up rather than a safe
 launch setting. Test lifecycle rules in staging and audit their prefix filters.
+
+The four buckets are intentionally private. `ASSETS_BUCKET`, `UPLOADS_BUCKET`,
+`RENDERS_BUCKET`, and `EXPORTS_BUCKET` must be separate bindings in every
+environment; never make an export or render bucket public to avoid signing
+URLs. Configure lifecycle rules through the R2 dashboard/API per bucket and
+record the rule IDs in the release record. At minimum, abort incomplete
+multipart uploads after 24 hours. Only add expiry rules for an explicitly
+temporary prefix after confirming that the corresponding D1 cleanup/outbox
+workflow is idempotent.
+
+As of the current account audit, all four production buckets have the
+Cloudflare default multipart-abort rule enabled for 7 days and no object
+expiry rule. Treat that as a safe baseline; shorten it to 24 hours only after
+staging validation and a recorded change review.
+
+## Scheduled jobs and queue inventory
+
+The current live configs intentionally have only bounded, known jobs:
+
+| Worker | Trigger | Purpose | Mutates customer data? |
+|---|---|---|---|
+| API | `17 */6 * * *` | remove expired character source uploads, process the asset cleanup outbox, and release reservations older than the bounded 2-hour stale window | yes, narrowly claimed rows and owned R2/D1/ledger objects |
+| Render | `*/10 * * * *` | reap render jobs stuck for at least 30 minutes, then refund once by operation key | yes, guarded terminal transition |
+| Render queue consumer | `render-queue` | start/monitor one render per message; poison messages go to `render-dlq` after three retries | yes, per-job |
+
+The generation reconciler is deliberately bounded: it only handles an expired
+reservation whose job has been unchanged for at least two hours, and uses a
+deterministic refund operation key plus a guarded terminal transition. Monitor
+its structured counts alongside `render-dlq` and queue depth in the Cloudflare
+Queues dashboard; replay a DLQ message only after checking its D1/render-job
+state and preserving the original message ID.
 
 ## Paid Replicate smoke
 

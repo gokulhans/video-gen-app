@@ -28,18 +28,26 @@ void main() {
               (ref) async => const [
                 Brand(
                   id: 'brand_1',
-                  name: 'Northstar',
+                  name: 'Northstar International Storytelling Brand System',
                   primaryColor: '#6750A4',
                   secondaryColor: '#00A896',
                 ),
               ],
             ),
           ],
-          child: const MaterialApp(home: BrandKitsScreen()),
+          child: MaterialApp(
+            home: MediaQuery(
+              data: MediaQueryData(
+                size: viewport,
+                textScaler: const TextScaler.linear(1.5),
+              ),
+              child: const BrandKitsScreen(),
+            ),
+          ),
         ),
       );
       await tester.pumpAndSettle();
-      expect(find.text('Northstar'), findsOneWidget);
+      expect(find.textContaining('Northstar International'), findsOneWidget);
       expect(tester.takeException(), isNull);
     }
   });
@@ -64,6 +72,8 @@ void main() {
             consentSummaryProvider.overrideWith(
               (ref) async => {'characterConsentRecords': 2},
             ),
+            exportRequestsProvider.overrideWith((ref) async => const []),
+            deletionRequestsProvider.overrideWith((ref) async => const []),
           ],
           child: const MaterialApp(home: SettingsScreen()),
         ),

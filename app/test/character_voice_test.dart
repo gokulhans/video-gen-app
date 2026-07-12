@@ -225,6 +225,7 @@ class _FakeAssetRepository extends AssetRepository {
     required String kind,
     required String contentType,
     required List<int> bytes,
+    String purpose = 'character_source',
   }) async {
     uploadCalls++;
     return const PrivateUploadedAsset(

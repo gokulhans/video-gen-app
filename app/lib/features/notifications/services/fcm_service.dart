@@ -73,7 +73,7 @@ class FcmService {
     final explicit = message.data['deepLink'] as String?;
     if (explicit != null &&
         RegExp(
-          r'^/(generation/[^/]+(?:/result/[^/]+)?|render/(?:progress|result)/[^/]+|editor/[^/]+|history|notifications)$',
+          r'^/(generation/[^/]+(?:/result/[^/]+)?|render/(?:(?:progress|result)/)?[^/]+|editor/[^/]+|history|notifications|settings|brands)$',
         ).hasMatch(explicit))
       return explicit;
     final jobId = message.data['jobId'] as String?;

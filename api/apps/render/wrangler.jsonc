@@ -77,5 +77,28 @@
       "instance_type": "standard-4",
       "max_instances": 5
     }
-  ]
+  ],
+  "env": {
+    "staging": {
+      "name": "render-staging",
+      "vars": { "EMAIL_FROM_ADDRESS": "notifications@mail.zellyo.in", "EMAIL_FROM_NAME": "Zellyo" },
+      "send_email": [{ "name": "EMAIL" }],
+      "d1_databases": [{ "binding": "DB", "database_name": "ai-video-db-staging", "database_id": "4e5232f4-2277-4e1f-803c-daf9ec149bd0", "migrations_dir": "../../packages/db/migrations" }],
+      "r2_buckets": [
+        { "binding": "ASSETS_BUCKET", "bucket_name": "assets-staging" },
+        { "binding": "RENDERS_BUCKET", "bucket_name": "renders-staging" }
+      ],
+      "queues": {
+        "consumers": [{ "queue": "render-queue-staging", "max_concurrency": 5, "max_batch_size": 1, "max_batch_timeout": 5, "max_retries": 3, "dead_letter_queue": "render-dlq-staging" }]
+      },
+      "durable_objects": {
+        "bindings": [
+          { "name": "RENDER_JOB_DO", "class_name": "RenderJobDO" },
+          { "name": "RENDERER", "class_name": "RendererContainer" }
+        ]
+      },
+      "migrations": [{ "tag": "v1", "new_sqlite_classes": ["RenderJobDO", "RendererContainer"] }],
+      "containers": [{ "class_name": "RendererContainer", "image": "../../containers/renderer/Dockerfile", "instance_type": "standard-4", "max_instances": 5 }]
+    }
+  }
 }

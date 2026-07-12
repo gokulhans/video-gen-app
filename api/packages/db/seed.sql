@@ -14,6 +14,11 @@ INSERT OR IGNORE INTO token_costs (id, action, cost, description, is_active, cre
 	('tc_r720',    'render_720p',       50,  'Cloud render at 720p',             1, unixepoch()*1000, unixepoch()*1000),
 	('tc_r1080',   'render_1080p',      100, 'Cloud render at 1080p',            1, unixepoch()*1000, unixepoch()*1000);
 
+INSERT OR IGNORE INTO admin_roles (id, role_key, name, permissions, created_at, updated_at) VALUES
+	('role_catalog_manager', 'catalog_manager', 'Catalog manager', '["catalog.read","catalog.write","catalog.publish","providers.read","providers.write","providers.publish","pricing.read","pricing.write","pricing.publish","voices.read","voices.write","characters.read","characters.write"]', unixepoch()*1000, unixepoch()*1000),
+	('role_safety_reviewer', 'safety_reviewer', 'Safety reviewer', '["characters.read","characters.moderate","audit.read"]', unixepoch()*1000, unixepoch()*1000),
+	('role_support_analyst', 'support_analyst', 'Support analyst', '["jobs.read","audit.read","legacy.read"]', unixepoch()*1000, unixepoch()*1000);
+
 -- Launch templates: 3 focus verticals (restaurant, salon, real estate)
 INSERT OR IGNORE INTO templates (id, vertical, name, preview_video_url, script_prompt_preset, image_style_preset, music_track_url, caption_style, default_duration, is_active, created_at, updated_at) VALUES
 	('tpl_restaurant_offer', 'restaurant', 'Restaurant Offer',
@@ -76,7 +81,7 @@ VALUES
 	('tplver_pvideo_quick_test_v1', 'tpl_pvideo_quick_test', 1, 'published', 'P-Video Quick Test',
 	 'Generate a one-second draft at the lowest practical test cost. Upgrade quality before customer delivery.',
 	 'p_video', 1,
-	 '{"durations":[1,5,10,20],"aspectRatios":["16:9","9:16","1:1"],"resolutions":["720p","1080p"],"supportsImage":true,"supportsAudio":true}',
+	 '{"durations":[1],"aspectRatios":["16:9","9:16","1:1"],"resolutions":["720p"],"supportsImage":true,"supportsAudio":false}',
 	 'price_pvideo_test_v1',
 	 '{"provider":"replicate","model":"prunaai/p-video","modelVersion":"68b33d8ba1189a1a997abf2c09edc5bbb90d6cfa239befbf9c903bcfee7f9a59","mode":"test","defaults":{"durationSec":1,"aspectRatio":"16:9","resolution":"720p","fps":24,"draft":true,"promptUpsampling":true,"includeGeneratedAudio":false,"safetyFilterEnabled":true}}',
 	 unixepoch()*1000, unixepoch()*1000);
@@ -88,7 +93,7 @@ INSERT OR IGNORE INTO template_pipeline_bindings
 	(id, template_version_id, provider_model_version_id, priority, rollout_percent, input_mapping, is_active, created_at)
 VALUES
 	('binding_pvideo_quick_test_v1', 'tplver_pvideo_quick_test_v1', 'modelver_pvideo_68b33', 0, 100,
-	 '{"prompt":"prompt","imageUrl":"image","audioUrl":"audio","lastFrameImageUrl":"last_frame_image","durationSec":"duration","aspectRatio":"aspect_ratio","resolution":"resolution","fps":"fps","draft":"draft","promptUpsampling":"prompt_upsampling","includeGeneratedAudio":"save_audio"}',
+	 '{"prompt":"prompt","imageUrl":"image","lastFrameImageUrl":"last_frame_image","durationSec":"duration","aspectRatio":"aspect_ratio","resolution":"resolution","fps":"fps","draft":"draft","promptUpsampling":"prompt_upsampling"}',
 	 1, unixepoch()*1000);
 
 INSERT OR IGNORE INTO template_input_definitions
@@ -96,7 +101,6 @@ INSERT OR IGNORE INTO template_input_definitions
 VALUES
 	('input_pvideo_prompt', 'tplver_pvideo_quick_test_v1', 'prompt', 'long_text', 'Describe your video', 'Include the subject, setting, camera movement, lighting, and action.', 1, 10, '{"minLength":3,"maxLength":5000}', NULL),
 	('input_pvideo_image', 'tplver_pvideo_quick_test_v1', 'imageUrl', 'image', 'Starting image', 'Optional. The image controls the output canvas.', 0, 20, '{"maxFiles":1,"maxBytes":15000000,"acceptedContentTypes":["image/jpeg","image/png","image/webp"]}', NULL),
-	('input_pvideo_audio', 'tplver_pvideo_quick_test_v1', 'audioUrl', 'audio', 'Audio', 'Optional. When supplied, audio controls the duration.', 0, 30, '{"maxBytes":50000000,"acceptedContentTypes":["audio/flac","audio/mpeg","audio/wav","audio/x-wav"]}', NULL),
-	('input_pvideo_duration', 'tplver_pvideo_quick_test_v1', 'durationSec', 'select', 'Duration', 'Use one second for inexpensive smoke tests.', 1, 40, NULL, '[{"value":1,"label":"1 second · lowest-cost test"},{"value":5,"label":"5 seconds"},{"value":10,"label":"10 seconds"},{"value":20,"label":"20 seconds"}]'),
+	('input_pvideo_duration', 'tplver_pvideo_quick_test_v1', 'durationSec', 'select', 'Duration', 'Fixed to one second for inexpensive smoke tests.', 1, 40, NULL, '[{"value":1,"label":"1 second · lowest-cost test"}]'),
 	('input_pvideo_aspect', 'tplver_pvideo_quick_test_v1', 'aspectRatio', 'select', 'Aspect ratio', NULL, 1, 50, NULL, '[{"value":"16:9","label":"Landscape · 16:9"},{"value":"9:16","label":"Portrait · 9:16"},{"value":"1:1","label":"Square · 1:1"}]'),
-	('input_pvideo_resolution', 'tplver_pvideo_quick_test_v1', 'resolution', 'select', 'Resolution', NULL, 1, 60, NULL, '[{"value":"720p","label":"HD · 720p"},{"value":"1080p","label":"Full HD · 1080p"}]');
+	('input_pvideo_resolution', 'tplver_pvideo_quick_test_v1', 'resolution', 'select', 'Resolution', NULL, 1, 60, NULL, '[{"value":"720p","label":"HD · 720p"}]');

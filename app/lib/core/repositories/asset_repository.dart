@@ -60,6 +60,7 @@ class AssetRepository {
     required String kind,
     required String contentType,
     required List<int> bytes,
+    String purpose = 'character_source',
   }) async {
     final target = await _api.post<PresignedUpload>(
       '/assets/upload-private-url',
@@ -67,6 +68,7 @@ class AssetRepository {
         'kind': kind,
         'contentType': contentType,
         'sizeBytes': bytes.length,
+        'purpose': purpose,
       },
       parser: (json) => PresignedUpload.fromJson(
         json as Map<String, dynamic>,

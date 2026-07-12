@@ -19,6 +19,10 @@ export function createAuth(env: Env) {
 		baseURL: env.APP_BASE_URL,
 		secret: env.BETTER_AUTH_SECRET,
 		basePath: "/api/auth",
+		trustedOrigins: (env.ALLOWED_ORIGINS ?? "")
+			.split(",")
+			.map((origin) => origin.trim())
+			.filter(Boolean),
 		database: drizzleAdapter(db, {
 			provider: "sqlite",
 			schema,

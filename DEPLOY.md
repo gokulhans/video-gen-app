@@ -8,10 +8,27 @@ Live stack (Cloudflare account: Gokulhansv@gmail.com / `58f07fb13c26e83dd6109d95
 | Pipeline (Workflows) | https://pipeline.gokulhansv.workers.dev |
 | Render (Queue + DO + Container) | https://render.gokulhansv.workers.dev |
 | Admin dashboard | https://admin.gokulhansv.workers.dev |
+| Flutter web client | Cloudflare Workers static assets (`app/wrangler.jsonc`) |
 
 Already provisioned: D1 `ai-video-db` (`42aede4d-4f0c-41da-86d0-4a2bce18d83a`, migrated + seeded),
-KV `ai-video-kv` (`5a5e2238fcc5423d8a9d3ec4dd94121f`), R2 buckets `assets` / `renders` / `uploads`,
-Queues `render-queue` / `render-dlq`. All IDs are committed in each app's `wrangler.jsonc`.
+KV `ai-video-kv` (`5a5e2238fcc5423d8a9d3ec4dd94121f`), and the private R2 buckets
+`assets` / `renders` / `uploads` / `exports`. Queues `render-queue` /
+`render-dlq` are provisioned. The committed Wrangler files reference this one
+resource set only; they are not a staging environment. Do not point a staging
+deployment at these IDs.
+
+Before production traffic is enabled, provision a separate resource set and
+Worker names for staging (including a separate Stream customer/library and AI
+Gateway). Keep the resulting IDs and secrets in protected GitHub
+`staging`/`production` environments or an approved secret manager; never add
+them to this repository. The complete isolation checklist is in
+[`docs/production-runbook.md`](docs/production-runbook.md).
+
+Staging resources are now provisioned in the same account and migrations/seed
+are applied to `ai-video-db-staging`; see the ignored local manifest
+`.staging-resources.local.json` and [`docs/staging-provisioning.md`](docs/staging-provisioning.md).
+Staging secrets and Stream/provider smoke approval are still intentionally
+required before deploying traffic.
 
 ---
 
@@ -28,7 +45,7 @@ a file instead. Secrets apply immediately — no redeploy needed.
 |---|---|---|---|
 | `BETTER_AUTH_SECRET` | all auth (session signing) | any random 32+ chars (`openssl rand -base64 32`) | ✅ set |
 | `R2_ACCOUNT_ID` | presigned upload/download URLs | it's the account id: `58f07fb13c26e83dd6109d957083478d` | ⬜ |
-| `R2_ACCESS_KEY_ID` / `R2_SECRET_ACCESS_KEY` | presigned URLs | Dashboard → R2 → Manage API Tokens → Create API token → permission **Object Read & Write** on buckets `assets`, `renders`, `uploads`. Shown once — copy both values | ⬜ |
+| `R2_ACCESS_KEY_ID` / `R2_SECRET_ACCESS_KEY` | presigned URLs | Dashboard → R2 → Manage API Tokens → Create API token → permission **Object Read & Write** on buckets `assets`, `renders`, `uploads`, `exports`. Shown once — copy both values | ⬜ |
 | `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | Google sign-in | console.cloud.google.com → APIs & Services → Credentials → Create OAuth client (type **Web application**; authorized redirect URI `https://api.gokulhansv.workers.dev/api/auth/callback/google`) | ⬜ optional at first |
 | `GOOGLE_PLAY_SERVICE_ACCOUNT_JSON` | token purchase verification | Play Console → Setup → API access → service account key JSON | ⬜ later, needs Play Console |
 | `GOOGLE_PLAY_PACKAGE_NAME` | same | your final Android applicationId | ⬜ later |

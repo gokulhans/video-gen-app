@@ -588,7 +588,7 @@ async function notifyBestEffort(env: Env, identity: InternalJobIdentity, complet
     if(generationEnabled && preferences?.emailEnabled){
       const recipient=await env.DB.prepare("SELECT email FROM user WHERE id=?").bind(identity.userId).first<{email:string}>();
       const claim=await env.DB.prepare("UPDATE notifications SET email_sent=1 WHERE id=? AND email_sent=0").bind(notificationId).run();
-      if(recipient?.email&&(claim.meta.changes??0)===1){try{const subject=completed?"Your Zellyo video is ready":"Zellyo video generation failed";const text=completed?"Your generated video is ready in Zellyo.":"Generation failed and your reserved credits were returned.";await env.EMAIL.send({to:recipient.email,from:{email:env.EMAIL_FROM_ADDRESS,name:env.EMAIL_FROM_NAME},subject,text,html:`<p>${text}</p>`});}catch(error){await env.DB.prepare("UPDATE notifications SET email_sent=0 WHERE id=?").bind(notificationId).run();throw error;}}
+      if(recipient?.email&&(claim.meta.changes??0)===1){try{const subject=completed?"Your Aividgen video is ready":"Aividgen video generation failed";const text=completed?"Your generated video is ready in Aividgen.":"Generation failed and your reserved credits were returned.";await env.EMAIL.send({to:recipient.email,from:{email:env.EMAIL_FROM_ADDRESS,name:env.EMAIL_FROM_NAME},subject,text,html:`<p>${text}</p>`});}catch(error){await env.DB.prepare("UPDATE notifications SET email_sent=0 WHERE id=?").bind(notificationId).run();throw error;}}
     }
   } catch (notificationError) {
     console.error(JSON.stringify({

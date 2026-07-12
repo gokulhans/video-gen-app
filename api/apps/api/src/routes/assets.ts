@@ -28,6 +28,7 @@ const UploadUrlBody = z.object({
 	contentType: z.string().min(1),
 	sizeBytes: z.number().int().positive(),
 }).strict();
+const PrivateUploadUrlBody = UploadUrlBody.extend({ purpose: z.enum(["character_source", "brand_logo"]).default("character_source") }).strict();
 
 assets.post("/upload-url", zValidator("json", UploadUrlBody), async (c) => {
 	const userId = c.get("userId");
@@ -66,9 +67,9 @@ assets.post("/upload-url", zValidator("json", UploadUrlBody), async (c) => {
 // Character sources do not need a provider fetch token at upload time. This
 // endpoint keeps biometric inputs private and returns only the R2 PUT target
 // plus the opaque asset id used after finalization.
-assets.post("/upload-private-url", zValidator("json", UploadUrlBody), async (c) => {
+assets.post("/upload-private-url", zValidator("json", PrivateUploadUrlBody), async (c) => {
 	const userId = c.get("userId");
-	const { kind, contentType, sizeBytes } = c.req.valid("json");
+	const { kind, contentType, sizeBytes, purpose } = c.req.valid("json");
 	const validationError = validateUploadDeclaration(kind, contentType, sizeBytes);
 	if (validationError) return Errors.validation(c, validationError);
 	const extension = uploadExtension(contentType);
@@ -78,7 +79,7 @@ assets.post("/upload-private-url", zValidator("json", UploadUrlBody), async (c) 
 		userId, objectKey, kind, contentType, declaredSizeBytes: sizeBytes,
 	});
 	await getDb(c.env.DB).update(schema.userUploadAssets).set({
-		purpose: "character_source",
+		purpose,
 		cleanupAfter: Date.now() + 24 * 60 * 60 * 1000,
 	}).where(and(eq(schema.userUploadAssets.id, record.assetId), eq(schema.userUploadAssets.userId, userId)));
 	const uploadUrl = await presignPut(c.env, "uploads", objectKey, contentType, UPLOAD_URL_TTL_SECONDS);

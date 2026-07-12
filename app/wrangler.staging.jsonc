@@ -1,0 +1,10 @@
+{
+  "$schema": "../api/node_modules/wrangler/config-schema.json",
+  "name": "zellyo-app-staging",
+  "account_id": "58f07fb13c26e83dd6109d957083478d",
+  "compatibility_date": "2026-07-12",
+  "assets": {
+    "directory": "./build/web",
+    "not_found_handling": "single-page-application"
+  }
+}

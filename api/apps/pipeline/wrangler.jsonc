@@ -80,7 +80,36 @@
       "class_name": "AccountDeletionWorkflow",
       "limits": { "steps": 1000 }
     }
-  ]
+  ],
+  "env": {
+    "staging": {
+      "name": "pipeline-staging",
+      "vars": {
+        "AI_GATEWAY_BASE_URL": "https://gateway.ai.cloudflare.com/v1/58f07fb13c26e83dd6109d957083478d/ai-video-staging",
+        "APP_BASE_URL": "https://api-staging.gokulhansv.workers.dev",
+        "EMAIL_FROM_ADDRESS": "notifications@mail.zellyo.in",
+        "EMAIL_FROM_NAME": "Zellyo"
+      },
+      "d1_databases": [{ "binding": "DB", "database_name": "ai-video-db-staging", "database_id": "4e5232f4-2277-4e1f-803c-daf9ec149bd0", "migrations_dir": "../../packages/db/migrations" }],
+      "r2_buckets": [
+        { "binding": "ASSETS_BUCKET", "bucket_name": "assets-staging" },
+        { "binding": "UPLOADS_BUCKET", "bucket_name": "uploads-staging" },
+        { "binding": "RENDERS_BUCKET", "bucket_name": "renders-staging" },
+        { "binding": "EXPORTS_BUCKET", "bucket_name": "exports-staging" }
+      ],
+      "send_email": [{ "name": "EMAIL" }],
+      "stream": { "binding": "STREAM" },
+      "workflows": [
+        { "name": "generation-pipeline-staging", "binding": "GENERATION_PIPELINE", "class_name": "GenerationPipeline", "limits": { "steps": 25000 } },
+        { "name": "p-video-generation-staging", "binding": "P_VIDEO_GENERATION", "class_name": "PVideoGenerationWorkflow", "limits": { "steps": 25000 } },
+        { "name": "regen-image-staging", "binding": "REGEN_IMAGE", "class_name": "RegenerateSceneImage", "limits": { "steps": 2500 } },
+        { "name": "regen-voice-staging", "binding": "REGEN_VOICE", "class_name": "RegenerateVoiceover", "limits": { "steps": 2500 } },
+        { "name": "rewrite-script-staging", "binding": "REWRITE_SCRIPT", "class_name": "RewriteScript", "limits": { "steps": 2500 } },
+        { "name": "data-export-staging", "binding": "DATA_EXPORT_WORKFLOW", "class_name": "DataExportWorkflow", "limits": { "steps": 25000 } },
+        { "name": "account-deletion-staging", "binding": "ACCOUNT_DELETION_WORKFLOW", "class_name": "AccountDeletionWorkflow", "limits": { "steps": 1000 } }
+      ]
+    }
+  }
   // Secrets include MEDIA_INGEST_SIGNING_SECRET, configured to the same
   // high-entropy value on the api Worker. Never store it in this file.
 }

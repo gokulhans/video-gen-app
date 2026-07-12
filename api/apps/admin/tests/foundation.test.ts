@@ -39,10 +39,11 @@ test("audit summaries redact credentials and bound large values", () => {
 
 test("P-Video publishing is locked to the pinned Replicate model", () => {
 	assert.match(P_VIDEO_PINNED_DIGEST, /^[a-f0-9]{64}$/);
-	const valid = { pipelineType: "p_video", providerKey: "replicate", modelKey: "prunaai/p-video", modelVersionRef: P_VIDEO_PINNED_DIGEST, configProvider: "replicate", configModel: "prunaai/p-video", configModelVersion: P_VIDEO_PINNED_DIGEST, defaultsValid: true, mode: "test", testDefaultsValid: true, pricingKey: P_VIDEO_TEST_PRICE_KEY, creditAmount: P_VIDEO_TEST_CREDITS };
+	const valid = { pipelineType: "p_video", providerKey: "replicate", modelKey: "prunaai/p-video", modelVersionRef: P_VIDEO_PINNED_DIGEST, configProvider: "replicate", configModel: "prunaai/p-video", configModelVersion: P_VIDEO_PINNED_DIGEST, defaultsValid: true, mode: "test", testDefaultsValid: true, testSurfaceValid: true, pricingKey: P_VIDEO_TEST_PRICE_KEY, creditAmount: P_VIDEO_TEST_CREDITS };
 	assert.deepEqual(validatePVideoPublishState(valid), []);
 	assert.equal(validatePVideoPublishState({ ...valid, providerKey: "custom", modelKey: "other", modelVersionRef: "latest", configProvider: "custom", configModel: "other", configModelVersion: "latest", defaultsValid: false }).length, 4);
 	assert.equal(validatePVideoPublishState({ ...valid, testDefaultsValid: false, pricingKey: "expensive", creditAmount: 50 }).length, 2);
+	assert.equal(validatePVideoPublishState({ ...valid, testSurfaceValid: false }).length, 1);
 	assert.deepEqual(validatePVideoPublishState({ ...valid, pipelineType: "render" }), []);
 });
 

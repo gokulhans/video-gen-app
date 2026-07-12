@@ -7,7 +7,7 @@ import { getDb, schema } from "@app/db";
 import { DEFAULT_TOKEN_COSTS, TOKEN_ACTIONS } from "@app/shared";
 import type { AppEnv } from "../env";
 import { Errors, okJson } from "../lib/response";
-import { verifyPlayPurchase } from "../lib/google-play";
+import { acknowledgePlayPurchase, verifyPlayPurchase } from "../lib/google-play";
 
 export const tokens = new Hono<AppEnv>();
 
@@ -86,12 +86,17 @@ tokens.post("/purchase/verify", zValidator("json", PurchaseVerifyBody), async (c
 	}
 	const purchaseTokenHash = await sha256(purchaseToken);
 	const db = getDb(c.env.DB);
-	const existing = await db.select({ userId: schema.playPurchases.userId }).from(schema.playPurchases)
+	const existing = await db.select({ userId: schema.playPurchases.userId, productId: schema.playPurchases.productId, acknowledgedAt: schema.playPurchases.acknowledgedAt }).from(schema.playPurchases)
 		.where(eq(schema.playPurchases.purchaseTokenHash, purchaseTokenHash)).get();
 	if (existing) {
 		if (existing.userId !== userId) return Errors.conflict(c, "Purchase has already been claimed");
+		if (!existing.acknowledgedAt) {
+			try { await acknowledgePlayPurchase(c.env, existing.productId, purchaseToken); }
+			catch { return Errors.serviceUnavailable(c, "Purchase acknowledgement is temporarily unavailable; retry shortly"); }
+			await db.update(schema.playPurchases).set({ acknowledgedAt: Date.now() }).where(eq(schema.playPurchases.purchaseTokenHash, purchaseTokenHash));
+		}
 		const balance = await db.select({ tokens: schema.user.tokens }).from(schema.user).where(eq(schema.user.id, userId)).get();
-		return okJson(c, { tokens: balance?.tokens ?? 0, credited: false });
+		return okJson(c, { tokens: balance?.tokens ?? 0, credited: false, acknowledged: true });
 	}
 
 	let verification;
@@ -102,13 +107,17 @@ tokens.post("/purchase/verify", zValidator("json", PurchaseVerifyBody), async (c
 		return Errors.badRequest(c, "Could not verify purchase with Google Play");
 	}
 	if (!verification.valid) return Errors.badRequest(c, "Purchase is not in a valid purchased state");
+	if (!verification.acknowledged) {
+		try { await acknowledgePlayPurchase(c.env, productId, purchaseToken); }
+		catch { return Errors.serviceUnavailable(c, "Purchase acknowledgement is temporarily unavailable; retry shortly"); }
+	}
 
 	const purchaseId = nanoid();
 	try {
 		await db.batch([
-			db.insert(schema.playPurchases).values({
+				db.insert(schema.playPurchases).values({
 				id: purchaseId, userId, productId, purchaseTokenHash,
-				orderId: verification.orderId ?? null, tokenAmount,
+				orderId: verification.orderId ?? null, tokenAmount, acknowledgedAt: Date.now(),
 			}),
 			db.update(schema.user).set({ tokens: sql`${schema.user.tokens} + ${tokenAmount}`, updatedAt: new Date() })
 				.where(eq(schema.user.id, userId)),
@@ -124,8 +133,8 @@ tokens.post("/purchase/verify", zValidator("json", PurchaseVerifyBody), async (c
 		if (!claimed) throw error;
 		if (claimed.userId !== userId) return Errors.conflict(c, "Purchase has already been claimed");
 		const balance = await db.select({ tokens: schema.user.tokens }).from(schema.user).where(eq(schema.user.id, userId)).get();
-		return okJson(c, { tokens: balance?.tokens ?? 0, credited: false });
+		return okJson(c, { tokens: balance?.tokens ?? 0, credited: false, acknowledged: true });
 	}
 	const balance = await db.select({ tokens: schema.user.tokens }).from(schema.user).where(eq(schema.user.id, userId)).get();
-	return okJson(c, { tokens: balance?.tokens ?? 0, credited: true });
+	return okJson(c, { tokens: balance?.tokens ?? 0, credited: true, acknowledged: true });
 });

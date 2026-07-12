@@ -6,7 +6,7 @@ Cloudflare Worker control plane: Hono APIs under `/api/admin/*` plus a build-ste
 
 - Put the entire deployment behind Cloudflare Access. This Worker deliberately does not pretend to verify Access headers.
 - Protected routes also validate the existing bearer session in D1.
-- RBAC is resolved from `admin_roles` / `admin_user_roles`; `user.isAdmin` remains a temporary super-admin fallback.
+- RBAC is resolved from `admin_roles` / `admin_user_roles`. The Users console assigns the seeded catalog-manager, safety-reviewer, and support-analyst roles with an atomic audit event; `user.isAdmin` remains an emergency super-admin fallback.
 - Role permissions are server-enforced. The static UI is not an authorization boundary.
 - Provider credentials belong in Worker secrets and never in D1, KV, source, logs, or the UI.
 - Compatibility login currently keeps its bearer token in `localStorage`. Restrict operators through Access and replace this with an HttpOnly session before broad rollout.
@@ -24,9 +24,11 @@ Cloudflare Worker control plane: Hono APIs under `/api/admin/*` plus a build-ste
 
 Published catalog mutations replace the KV `catalog:version` marker with a unique value and clear the legacy `templates:v1` entry. D1 remains the source of truth.
 
+The pinned five-credit P-Video test template is intentionally limited to one second, 720p, and no audio. Higher-cost combinations require a separately priced production template; both admin publication validation and the generation API reject attempts to smuggle them into test mode.
+
 ## Permission keys
 
-`catalog.read`, `catalog.write`, `catalog.publish`, `providers.read`, `providers.write`, `providers.publish`, `pricing.read`, `pricing.write`, `pricing.publish`, `voices.read`, `voices.write`, `characters.read`, `characters.write`, `jobs.read`, `audit.read`, `legacy.read`, `legacy.write`. A role containing `*` grants all permissions.
+`catalog.read`, `catalog.write`, `catalog.publish`, `providers.read`, `providers.write`, `providers.publish`, `pricing.read`, `pricing.write`, `pricing.publish`, `voices.read`, `voices.write`, `characters.read`, `characters.write`, `characters.moderate`, `jobs.read`, `audit.read`, `legacy.read`, `legacy.write`. A role containing `*` grants all permissions.
 
 ## Verification
 

@@ -130,3 +130,21 @@ export async function verifyPlayPurchase(
 		raw: json,
 	};
 }
+
+/** Acknowledge a managed product before crediting it to the user. */
+export async function acknowledgePlayPurchase(
+	env: Env,
+	productId: string,
+	purchaseToken: string,
+): Promise<void> {
+	const accessToken = await getAccessToken(env, "https://www.googleapis.com/auth/androidpublisher");
+	const url =
+		`https://androidpublisher.googleapis.com/androidpublisher/v3/applications/` +
+		`${env.GOOGLE_PLAY_PACKAGE_NAME}/purchases/products/${productId}/tokens/${purchaseToken}:acknowledge`;
+	const res = await fetch(url, {
+		method: "POST",
+		headers: { authorization: `Bearer ${accessToken}`, "content-type": "application/json" },
+		body: "{}",
+	});
+	if (!res.ok && res.status !== 409) throw new Error(`Google Play acknowledgement failed: ${res.status}`);
+}

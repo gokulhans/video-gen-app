@@ -31,6 +31,9 @@ test("job-aware notification links prefer an explicit safe application route", (
 	assert.equal(notificationDeepLink({deepLink:"/generation/job_1/result/asset_1",jobId:"job_1",projectId:null,type:"generation_complete"}),"/generation/job_1/result/asset_1");
 	assert.equal(notificationDeepLink({deepLink:null,jobId:"job 1",projectId:null,type:"generation_complete"}),"/generation/job%201");
 	assert.equal(notificationDeepLink({deepLink:null,jobId:null,projectId:"project_1",type:"render_complete"}),"/render/project_1");
+	assert.equal(notificationDeepLink({deepLink:"/settings",jobId:null,projectId:null,type:"data_export_ready"}),"/settings");
+	assert.equal(notificationDeepLink({deepLink:"/history/not-a-route",jobId:null,projectId:null,type:"other"}),null);
+	assert.equal(notificationDeepLink({deepLink:"/notifications/not-a-route",jobId:null,projectId:null,type:"other"}),null);
 });
 
 test("migration enforces tenant-scoped idempotency keys", async () => {

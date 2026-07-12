@@ -1,0 +1,27 @@
+{
+  "environment": "staging",
+  "d1": { "name": "ai-video-db-staging", "id": "<d1-id>" },
+  "kv": { "name": "ai-video-kv-staging", "id": "<kv-id>" },
+  "workers": {
+    "api": "api-staging",
+    "pipeline": "pipeline-staging",
+    "render": "render-staging",
+    "admin": "admin-staging",
+    "app": "zellyo-app-staging"
+  },
+  "r2": {
+    "assets": "assets-staging",
+    "uploads": "uploads-staging",
+    "renders": "renders-staging",
+    "exports": "exports-staging"
+  },
+  "queues": { "render": "render-queue-staging", "dlq": "render-dlq-staging" },
+  "stream": { "customerCode": "<staging-stream-customer-code>" },
+  "aiGateway": { "baseUrl": "https://gateway.ai.cloudflare.com/v1/<account>/ai-video-staging" },
+  "production": {
+    "d1Id": "<production-d1-id>",
+    "kvId": "<production-kv-id>",
+    "streamCustomerCode": "<production-stream-code>",
+    "aiGatewayBaseUrl": "https://gateway.ai.cloudflare.com/v1/<account>/ai-video"
+  }
+}

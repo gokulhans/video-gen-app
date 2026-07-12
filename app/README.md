@@ -111,7 +111,8 @@ Play Console.
 ## 7. Google Play Billing (tokens purchase)
 
 `lib/features/tokens/screens/purchase_screen.dart` wires up `in_app_purchase`
-for a consumable-token purchase flow, but it is a **functional stub**:
+for a consumable-token purchase flow. It is safe to ship only after the
+matching store products and server-owned catalog are configured:
 product ids (`tokens_500`, `tokens_1500`, `tokens_5000`) must be created as
 in-app products in the Play Console before `queryProductDetails` will return
 anything. Once purchases succeed, the client posts the purchase token to
@@ -119,13 +120,26 @@ anything. Once purchases succeed, the client posts the purchase token to
 CONTRACTS.md) before crediting tokens — the client never credits tokens
 locally.
 
-## 8. Running
+## 8. Cloudflare static web hosting
+
+The Flutter web build can be deployed as a Cloudflare Workers static asset
+deployment using [wrangler.jsonc](./wrangler.jsonc):
+
+```bash
+flutter build web --release
+npx wrangler deploy
+```
+
+Use environment-specific API/Auth `dart-define` values and a separate static
+asset Worker for staging.
+
+## 9. Running
 
 ```bash
 flutter run --dart-define=API_BASE_URL=... --dart-define=AUTH_BASE_URL=...
 ```
 
-## 9. Architecture
+## 10. Architecture
 
 ```
 lib/
@@ -161,7 +175,7 @@ lib/
     tokens/                 Balance/history + Play Billing purchase stub
 ```
 
-## 10. Known TODOs / assumptions
+## 11. Known TODOs / assumptions
 
 - **Auth response shape**: `AuthRepository._persistSession` assumes
   better-auth returns `{ token, user }` (or nested under `data`). Confirm the

@@ -20,6 +20,7 @@ class _NotificationsState extends ConsumerState<NotificationsScreen> {
   bool loadingMore = false;
   String? loadMoreError;
   String? firstPageSignature;
+  int pageGeneration = 0;
   @override
   Widget build(BuildContext context) {
     final first = ref.watch(notificationPageProvider);
@@ -56,6 +57,7 @@ class _NotificationsState extends ConsumerState<NotificationsScreen> {
           final signature =
               '${page.nextCursor}|${page.items.map((item) => '${item.id}:${item.isRead}').join(',')}';
           if (firstPageSignature != signature) {
+            pageGeneration++;
             firstPageSignature = signature;
             older.clear();
             cursor = page.nextCursor;
@@ -80,6 +82,7 @@ class _NotificationsState extends ConsumerState<NotificationsScreen> {
                   child: RefreshIndicator(
                     onRefresh: () async {
                       setState(() {
+                        pageGeneration++;
                         older.clear();
                         cursor = null;
                         firstPageSignature = null;
@@ -154,12 +157,16 @@ class _NotificationsState extends ConsumerState<NotificationsScreen> {
 
   Future<void> _loadMore() async {
     if (cursor == null) return;
+    final requestedCursor = cursor!;
+    final requestedGeneration = pageGeneration;
     setState(() => loadingMore = true);
     try {
       final page = await ref
           .read(notificationRepositoryProvider)
-          .list(cursor: cursor);
-      if (mounted)
+          .list(cursor: requestedCursor);
+      if (mounted &&
+          requestedGeneration == pageGeneration &&
+          cursor == requestedCursor)
         setState(() {
           final existing = older.map((item) => item.id).toSet();
           older.addAll(page.items.where((item) => existing.add(item.id)));
@@ -167,10 +174,12 @@ class _NotificationsState extends ConsumerState<NotificationsScreen> {
           loadMoreError = null;
         });
     } catch (_) {
-      if (mounted)
+      if (mounted && requestedGeneration == pageGeneration)
         setState(() => loadMoreError = 'Unable to load older notifications');
     } finally {
-      if (mounted) setState(() => loadingMore = false);
+      if (mounted && requestedGeneration == pageGeneration) {
+        setState(() => loadingMore = false);
+      }
     }
   }
 

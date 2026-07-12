@@ -41,6 +41,7 @@ class _PurchaseScreenState extends ConsumerState<PurchaseScreen> {
   bool _available = false;
   bool _busy = false;
   String? _pendingProductId;
+  final Map<String, ProductDetails> _products = {};
 
   @override
   void initState() {
@@ -52,9 +53,6 @@ class _PurchaseScreenState extends ConsumerState<PurchaseScreen> {
     _available = await _iap.isAvailable();
     if (!mounted) return;
     setState(() {});
-    // TODO: replace with a real purchaseStream listener once product ids
-    // are registered in the Play Console. Kept disabled by default so this
-    // screen is safe to ship without a configured billing account.
     _subscription = _iap.purchaseStream.listen(
       _onPurchaseUpdate,
       onError: (_) {},
@@ -74,11 +72,23 @@ class _PurchaseScreenState extends ConsumerState<PurchaseScreen> {
               );
           await _iap.completePurchase(purchase);
           if (mounted) {
+            setState(() {
+              _pendingProductId = null;
+              _busy = false;
+            });
+          }
+          if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(content: Text('Tokens added to your balance!')),
             );
           }
         } on ApiException catch (e) {
+          if (mounted) {
+            setState(() {
+              _pendingProductId = null;
+              _busy = false;
+            });
+          }
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
@@ -86,8 +96,24 @@ class _PurchaseScreenState extends ConsumerState<PurchaseScreen> {
               ),
             );
           }
+        } catch (error) {
+          if (mounted) {
+            setState(() {
+              _pendingProductId = null;
+              _busy = false;
+            });
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Purchase verification failed: $error')),
+            );
+          }
         }
       } else if (purchase.status == PurchaseStatus.error) {
+        if (mounted) {
+          setState(() {
+            _pendingProductId = null;
+            _busy = false;
+          });
+        }
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text('Purchase error: ${purchase.error}')),
@@ -95,7 +121,7 @@ class _PurchaseScreenState extends ConsumerState<PurchaseScreen> {
         }
       }
     }
-    if (mounted) setState(() => _pendingProductId = null);
+    if (mounted && _pendingProductId == null) setState(() => _busy = false);
   }
 
   Future<void> _buy(String productId) async {
@@ -103,7 +129,7 @@ class _PurchaseScreenState extends ConsumerState<PurchaseScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text(
-            'Billing not available on this device/build yet (TODO: configure Play Billing).',
+            'Billing is unavailable on this device. Configure the store product catalog and release build before enabling purchases.',
           ),
         ),
       );
@@ -118,8 +144,9 @@ class _PurchaseScreenState extends ConsumerState<PurchaseScreen> {
       if (response.productDetails.isEmpty) {
         throw Exception('Product not found in store listing');
       }
+      _products[productId] = response.productDetails.first;
       final purchaseParam = PurchaseParam(
-        productDetails: response.productDetails.first,
+        productDetails: _products[productId]!,
       );
       await _iap.buyConsumable(purchaseParam: purchaseParam);
     } catch (e) {
@@ -130,7 +157,9 @@ class _PurchaseScreenState extends ConsumerState<PurchaseScreen> {
       }
       setState(() => _pendingProductId = null);
     } finally {
-      if (mounted) setState(() => _busy = false);
+      // The store flow is asynchronous; keep the action disabled until the
+      // purchase stream reports a purchased/restored/error terminal state.
+      if (mounted && _pendingProductId == null) setState(() => _busy = false);
     }
   }
 
@@ -153,9 +182,7 @@ class _PurchaseScreenState extends ConsumerState<PurchaseScreen> {
               child: const Padding(
                 padding: EdgeInsets.all(16),
                 child: Text(
-                  'Google Play Billing is not fully wired up yet. Product ids '
-                  'need to be created in the Play Console and this screen '
-                  'connected end-to-end (see code comments for the TODO plan).',
+                  'Purchases are verified server-side. Product IDs must exist in the matching store release and server-owned catalog before launch.',
                 ),
               ),
             ),
