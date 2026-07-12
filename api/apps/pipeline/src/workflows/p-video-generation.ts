@@ -569,23 +569,26 @@ async function notifyBestEffort(env: Env, identity: InternalJobIdentity, complet
 
     const preferences = await db.select({
       pushEnabled: schema.notificationPreferences.pushEnabled,
+      emailEnabled: schema.notificationPreferences.emailEnabled,
       generationUpdates: schema.notificationPreferences.generationUpdates,
     }).from(schema.notificationPreferences)
       .where(eq(schema.notificationPreferences.userId, identity.userId))
       .get();
-    if (preferences && (!preferences.pushEnabled || !preferences.generationUpdates)) return;
-    const devices = await db.select({ token: schema.devices.fcmToken })
-      .from(schema.devices).where(and(
-        eq(schema.devices.userId, identity.userId),
-        isNull(schema.devices.disabledAt),
-      ));
-    const push = await sendFcmPush(env.FCM_SERVICE_ACCOUNT_JSON, devices.map((device) => device.token), {
-      title: completed ? "Your video is ready" : "Video generation failed",
-      body: completed ? "Tap to view your generated video." : "Your reserved credits were returned.",
-      data: { jobId: identity.jobId, type: completed ? "generation_complete" : "generation_failed" },
-    });
-    if (push.sent > 0) {
-      await env.DB.prepare("UPDATE notifications SET push_sent = 1 WHERE id = ?1").bind(notificationId).run();
+    const generationEnabled=preferences?.generationUpdates ?? true;
+    if (generationEnabled && (preferences?.pushEnabled ?? true)) {
+      const devices = await db.select({ token: schema.devices.fcmToken })
+        .from(schema.devices).where(and(eq(schema.devices.userId, identity.userId),isNull(schema.devices.disabledAt)));
+      const push = await sendFcmPush(env.FCM_SERVICE_ACCOUNT_JSON, devices.map((device) => device.token), {
+        title: completed ? "Your video is ready" : "Video generation failed",
+        body: completed ? "Tap to view your generated video." : "Your reserved credits were returned.",
+        data: { jobId: identity.jobId, type: completed ? "generation_complete" : "generation_failed" },
+      });
+      if (push.sent > 0) await env.DB.prepare("UPDATE notifications SET push_sent = 1 WHERE id = ?1").bind(notificationId).run();
+    }
+    if(generationEnabled && preferences?.emailEnabled){
+      const recipient=await env.DB.prepare("SELECT email FROM user WHERE id=?").bind(identity.userId).first<{email:string}>();
+      const claim=await env.DB.prepare("UPDATE notifications SET email_sent=1 WHERE id=? AND email_sent=0").bind(notificationId).run();
+      if(recipient?.email&&(claim.meta.changes??0)===1){try{const subject=completed?"Your Zellyo video is ready":"Zellyo video generation failed";const text=completed?"Your generated video is ready in Zellyo.":"Generation failed and your reserved credits were returned.";await env.EMAIL.send({to:recipient.email,from:{email:env.EMAIL_FROM_ADDRESS,name:env.EMAIL_FROM_NAME},subject,text,html:`<p>${text}</p>`});}catch(error){await env.DB.prepare("UPDATE notifications SET email_sent=0 WHERE id=?").bind(notificationId).run();throw error;}}
     }
   } catch (notificationError) {
     console.error(JSON.stringify({
