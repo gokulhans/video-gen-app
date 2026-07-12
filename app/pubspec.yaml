@@ -30,6 +30,7 @@ dependencies:
   just_audio: ^0.9.42
   cached_network_image: ^3.4.1
   image_picker: ^1.1.2
+  file_picker: ^8.1.7
 
   # Sharing / downloading
   share_plus: ^10.1.3

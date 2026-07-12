@@ -4,6 +4,7 @@ import { eq } from "drizzle-orm";
 import { getDb, schema } from "@app/db";
 import { ok, err } from "@app/shared";
 import type { AppBindings } from "../types.js";
+import { writeAudit } from "../lib/audit.js";
 
 const app = new Hono<AppBindings>();
 
@@ -21,6 +22,7 @@ app.get("/", async (c) => {
 });
 
 const settingsSchema = z.object({
+	reason: z.string().trim().min(3).max(500),
 	defaultSignupBonus: z.number().int().min(0).optional(),
 	minimumTokenBalance: z.number().int().min(0).optional(),
 	enableTokenSystem: z.boolean().optional(),
@@ -39,18 +41,20 @@ app.put("/", async (c) => {
 	const db = getDb(c.env.DB);
 	const existing = await db.select().from(schema.settings).where(eq(schema.settings.id, SETTINGS_ID)).limit(1);
 
+	const { reason, ...changes } = parsed.data;
 	if (existing.length) {
 		await db
 			.update(schema.settings)
-			.set({ ...parsed.data, updatedAt: Date.now() })
+			.set({ ...changes, updatedAt: Date.now() })
 			.where(eq(schema.settings.id, SETTINGS_ID));
 	} else {
-		await db.insert(schema.settings).values({ id: SETTINGS_ID, ...parsed.data });
+		await db.insert(schema.settings).values({ id: SETTINGS_ID, ...changes });
 	}
 
 	await c.env.KV.delete("settings");
 
 	const [row] = await db.select().from(schema.settings).where(eq(schema.settings.id, SETTINGS_ID)).limit(1);
+	await writeAudit(c, { action: "settings.update", targetType: "settings", targetId: SETTINGS_ID, reason, before: existing[0] ?? null, after: row });
 	return c.json(ok(row));
 });
 

@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "wrangler dev",
     "deploy": "wrangler deploy",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "tsc -p tsconfig.test.json && tsc -p tsconfig.lifecycle-test.json && node --test test/*.test.mjs"
   },
   "dependencies": {
     "@app/db": "workspace:*",

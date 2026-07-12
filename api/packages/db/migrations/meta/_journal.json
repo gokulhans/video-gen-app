@@ -15,6 +15,34 @@
       "when": 1783833600000,
       "tag": "0001_production_hardening",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1783920000000,
+      "tag": "0002_generation_platform",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1783958400000,
+      "tag": "0003_brand_notifications_account",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1784044800000,
+      "tag": "0004_character_idempotency_cleanup",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1784131200000,
+      "tag": "0005_brand_lifecycle_workflows",
+      "breakpoints": true
     }
   ]
 }

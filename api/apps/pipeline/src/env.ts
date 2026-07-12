@@ -3,19 +3,29 @@
 export interface Env {
   DB: D1Database;
   ASSETS_BUCKET: R2Bucket;
+  UPLOADS_BUCKET: R2Bucket;
+  RENDERS_BUCKET: R2Bucket;
+  EXPORTS_BUCKET: R2Bucket;
+  STREAM: StreamBinding;
+  EMAIL: SendEmail;
 
   GENERATION_PIPELINE: Workflow;
+  P_VIDEO_GENERATION: Workflow;
   REGEN_IMAGE: Workflow;
   REGEN_VOICE: Workflow;
   REWRITE_SCRIPT: Workflow;
 
   AI_GATEWAY_BASE_URL: string;
   APP_BASE_URL: string;
+  EMAIL_FROM_ADDRESS: string;
+  EMAIL_FROM_NAME: string;
 
   OPENAI_API_KEY: string;
   GEMINI_API_KEY: string;
   REPLICATE_API_TOKEN: string;
   FCM_SERVICE_ACCOUNT_JSON: string;
+  MEDIA_INGEST_SIGNING_SECRET: string;
+  DELETION_TOMBSTONE_SECRET: string;
 }
 
 /** Public URL for an object stored in ASSETS_BUCKET. Assumes the api worker exposes

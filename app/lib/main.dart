@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 import 'core/constants.dart';
 import 'firebase_options.dart';
 import 'features/notifications/services/fcm_service.dart';
+import 'features/notifications/providers/notification_providers.dart';
 import 'router.dart';
 import 'theme.dart';
 
@@ -52,11 +53,30 @@ class _AiVideoMakerAppState extends ConsumerState<AiVideoMakerApp> {
   Future<void> _initFcm() async {
     final fcm = ref.read(fcmServiceProvider);
     await fcm.initialize(
-      onNotificationTap: (projectId) {
+      onNotificationTap: (deepLink) {
         final context = rootNavigatorKey.currentContext;
         if (context != null) {
-          context.push('/editor/$projectId');
+          context.push(deepLink);
         }
+      },
+      onForeground: (message, deepLink) {
+        ref.invalidate(notificationPageProvider);
+        ref.invalidate(unreadNotificationCountProvider);
+        final context = rootNavigatorKey.currentContext;
+        if (context == null) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              message.notification?.body ?? 'You have a new update',
+            ),
+            action: deepLink == null
+                ? null
+                : SnackBarAction(
+                    label: 'View',
+                    onPressed: () => context.push(deepLink),
+                  ),
+          ),
+        );
       },
     );
   }

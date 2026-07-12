@@ -5,6 +5,7 @@ import { and, count, desc, eq, like, or, sql } from "drizzle-orm";
 import { getDb, schema } from "@app/db";
 import { ok, err } from "@app/shared";
 import type { AppBindings } from "../types.js";
+import { writeAudit } from "../lib/audit.js";
 
 const app = new Hono<AppBindings>();
 
@@ -43,6 +44,7 @@ app.get("/", async (c) => {
 const grantTokensSchema = z.object({
 	amount: z.number().int().refine((v) => v !== 0, "amount must be non-zero"),
 	description: z.string().min(1).default("Admin grant"),
+	reason: z.string().trim().min(3).max(500),
 });
 
 // POST /api/admin/users/:id/grant-tokens
@@ -53,7 +55,7 @@ app.post("/:id/grant-tokens", async (c) => {
 	if (!parsed.success) {
 		return c.json(err("VALIDATION_ERROR", parsed.error.issues.map((i) => i.message).join(", ")), 400);
 	}
-	const { amount, description } = parsed.data;
+	const { amount, description, reason } = parsed.data;
 
 	const db = getDb(c.env.DB);
 	const existing = await db.select({ id: schema.user.id }).from(schema.user).where(eq(schema.user.id, userId)).limit(1);
@@ -77,11 +79,12 @@ app.post("/:id/grant-tokens", async (c) => {
 	]);
 
 	const [updated] = await db.select({ tokens: schema.user.tokens }).from(schema.user).where(eq(schema.user.id, userId)).limit(1);
+	await writeAudit(c, { action: "user.tokens.adjust", targetType: "user", targetId: userId, reason, before: { balance: updated ? updated.tokens - amount : null }, after: { balance: updated?.tokens ?? null, amount, transactionId } });
 
 	return c.json(ok({ userId, newBalance: updated?.tokens ?? null, transactionId }));
 });
 
-const toggleAdminSchema = z.object({ isAdmin: z.boolean() });
+const toggleAdminSchema = z.object({ isAdmin: z.boolean(), reason: z.string().trim().min(3).max(500) }).strict();
 
 // POST /api/admin/users/:id/toggle-admin
 app.post("/:id/toggle-admin", async (c) => {
@@ -101,6 +104,7 @@ app.post("/:id/toggle-admin", async (c) => {
 		.update(schema.user)
 		.set({ isAdmin: parsed.data.isAdmin, updatedAt: new Date() })
 		.where(eq(schema.user.id, userId));
+	await writeAudit(c, { action: parsed.data.isAdmin ? "user.super_admin.grant" : "user.super_admin.revoke", targetType: "user", targetId: userId, reason: parsed.data.reason, before: { isAdmin: !parsed.data.isAdmin }, after: { isAdmin: parsed.data.isAdmin } });
 
 	return c.json(ok({ userId, isAdmin: parsed.data.isAdmin }));
 });

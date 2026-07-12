@@ -1,0 +1,12 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": false,
+    "outDir": ".test-dist",
+    "rootDir": "src/providers"
+  },
+  "include": [
+    "src/providers/replicate.ts",
+    "src/providers/p-video.ts"
+  ]
+}

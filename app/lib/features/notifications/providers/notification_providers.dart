@@ -1,17 +1,14 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-
 import '../../../core/models/notification.dart';
 import '../../../core/repositories/notification_repository.dart';
 
+final notificationPageProvider = FutureProvider.autoDispose<NotificationPage>(
+  (ref) => ref.watch(notificationRepositoryProvider).list(),
+);
 final notificationListProvider =
-    FutureProvider.autoDispose<List<AppNotification>>((ref) async {
-      final repo = ref.watch(notificationRepositoryProvider);
-      return repo.list();
-    });
-
-/// Count of unread notifications, used for a badge on the home app bar.
-final unreadNotificationCountProvider = Provider.autoDispose<int>((ref) {
-  final notifications =
-      ref.watch(notificationListProvider).valueOrNull ?? const [];
-  return notifications.where((n) => !n.isRead).length;
-});
+    FutureProvider.autoDispose<List<AppNotification>>(
+      (ref) async => (await ref.watch(notificationPageProvider.future)).items,
+    );
+final unreadNotificationCountProvider = FutureProvider.autoDispose<int>(
+  (ref) => ref.watch(notificationRepositoryProvider).unreadCount(),
+);

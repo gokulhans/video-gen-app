@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/api_client.dart';
 import '../../../core/auth_repository.dart';
 import '../../../core/models/user.dart';
+import '../../notifications/services/fcm_service.dart';
 
 enum AuthActionStatus { idle, loading, success, error }
 
@@ -49,6 +50,11 @@ class AuthController extends StateNotifier<AuthActionState> {
 
   Future<void> signOut() async {
     state = state.copyWith(status: AuthActionStatus.loading);
+    try {
+      await _ref.read(fcmServiceProvider).unregisterCurrentToken();
+    } catch (_) {
+      // The API also expires stale tokens; sign-out must remain available offline.
+    }
     await _ref.read(authRepositoryProvider).signOut();
     state = const AuthActionState(status: AuthActionStatus.success);
     _ref.read(authTokenRevisionProvider.notifier).state++;

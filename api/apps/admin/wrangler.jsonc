@@ -24,6 +24,12 @@
 			"id": "5a5e2238fcc5423d8a9d3ec4dd94121f"
 		}
 	],
+	"r2_buckets": [
+		{
+			"binding": "UPLOADS_BUCKET",
+			"bucket_name": "uploads"
+		}
+	],
 	"vars": {
 		"AUTH_API_URL": "https://api.gokulhansv.workers.dev/api/auth"
 	},

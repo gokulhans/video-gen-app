@@ -21,7 +21,9 @@ class FcmService {
   final FirebaseMessaging _messaging = FirebaseMessaging.instance;
 
   Future<void> initialize({
-    required void Function(String projectId) onNotificationTap,
+    required void Function(String deepLink) onNotificationTap,
+    required void Function(RemoteMessage message, String? deepLink)
+    onForeground,
   }) async {
     if (!AppConstants.enableFirebase) return;
 
@@ -51,20 +53,46 @@ class FcmService {
     // Foreground messages: FCM does not show a system notification while
     // the app is foregrounded, so this is where you'd show an in-app
     // banner/snackbar. Kept minimal here — see TODO below.
-    FirebaseMessaging.onMessage.listen((message) {
-      // TODO: surface an in-app banner using message.notification?.title/body.
-    });
+    FirebaseMessaging.onMessage.listen(
+      (message) => onForeground(message, _deepLink(message)),
+    );
 
     // App opened from a background (not terminated) notification tap.
     FirebaseMessaging.onMessageOpenedApp.listen((message) {
-      final projectId = message.data['projectId'] as String?;
-      if (projectId != null) onNotificationTap(projectId);
+      final deepLink = _deepLink(message);
+      if (deepLink != null) onNotificationTap(deepLink);
     });
 
     // App launched from a terminated state via notification tap.
     final initialMessage = await _messaging.getInitialMessage();
-    final projectId = initialMessage?.data['projectId'] as String?;
-    if (projectId != null) onNotificationTap(projectId);
+    final deepLink = initialMessage == null ? null : _deepLink(initialMessage);
+    if (deepLink != null) onNotificationTap(deepLink);
+  }
+
+  String? _deepLink(RemoteMessage message) {
+    final explicit = message.data['deepLink'] as String?;
+    if (explicit != null &&
+        RegExp(
+          r'^/(generation/[^/]+(?:/result/[^/]+)?|render/(?:progress|result)/[^/]+|editor/[^/]+|history|notifications)$',
+        ).hasMatch(explicit))
+      return explicit;
+    final jobId = message.data['jobId'] as String?;
+    final type = message.data['type'] as String? ?? '';
+    if (jobId != null && type.startsWith('generation_'))
+      return '/generation/${Uri.encodeComponent(jobId)}';
+    if (jobId != null && type.startsWith('render_'))
+      return '/render/progress/${Uri.encodeComponent(jobId)}';
+    final projectId = message.data['projectId'] as String?;
+    return projectId == null
+        ? null
+        : '/editor/${Uri.encodeComponent(projectId)}';
+  }
+
+  Future<void> unregisterCurrentToken() async {
+    if (!AppConstants.enableFirebase || Firebase.apps.isEmpty) return;
+    final token = await _messaging.getToken();
+    if (token != null)
+      await _ref.read(notificationRepositoryProvider).unregisterDevice(token);
   }
 
   Future<void> _registerToken(String token) async {

@@ -26,6 +26,9 @@ class AppNotification extends Equatable {
     this.projectId,
     this.projectName,
     this.downloadUrl,
+    this.jobId,
+    this.deepLink,
+    this.readAt,
     this.isRead = false,
     required this.createdAt,
   });
@@ -37,6 +40,9 @@ class AppNotification extends Equatable {
   final String? projectId;
   final String? projectName;
   final String? downloadUrl;
+  final String? jobId;
+  final String? deepLink;
+  final DateTime? readAt;
   final bool isRead;
   final DateTime createdAt;
 
@@ -49,6 +55,13 @@ class AppNotification extends Equatable {
         projectId: json['projectId'] as String?,
         projectName: json['projectName'] as String?,
         downloadUrl: json['downloadUrl'] as String?,
+        jobId: json['jobId'] as String?,
+        deepLink: json['deepLink'] as String?,
+        readAt: json['readAt'] == null
+            ? null
+            : DateTime.fromMillisecondsSinceEpoch(
+                (json['readAt'] as num).toInt(),
+              ),
         isRead: json['isRead'] as bool? ?? false,
         createdAt: DateTime.fromMillisecondsSinceEpoch(
           (json['createdAt'] as num?)?.toInt() ?? 0,
@@ -63,6 +76,9 @@ class AppNotification extends Equatable {
     projectId: projectId,
     projectName: projectName,
     downloadUrl: downloadUrl,
+    jobId: jobId,
+    deepLink: deepLink,
+    readAt: readAt,
     isRead: isRead ?? this.isRead,
     createdAt: createdAt,
   );
@@ -76,7 +92,25 @@ class AppNotification extends Equatable {
     projectId,
     projectName,
     downloadUrl,
+    jobId,
+    deepLink,
+    readAt,
     isRead,
     createdAt,
   ];
+}
+
+class NotificationPage {
+  const NotificationPage({required this.items, this.nextCursor});
+  final List<AppNotification> items;
+  final String? nextCursor;
+  factory NotificationPage.fromJson(Map<String, dynamic> json) =>
+      NotificationPage(
+        items: (json['items'] as List<dynamic>? ?? const [])
+            .map(
+              (item) => AppNotification.fromJson(item as Map<String, dynamic>),
+            )
+            .toList(),
+        nextCursor: json['nextCursor'] as String?,
+      );
 }

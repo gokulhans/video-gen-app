@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/models/project.dart';
+import '../../../design_system/components/status_badge.dart';
 
 class ProjectStatusChipView extends StatelessWidget {
   const ProjectStatusChipView({super.key, required this.status});
@@ -9,23 +10,13 @@ class ProjectStatusChipView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final (label, color) = switch (status) {
-      ProjectStatusChip.draft => ('Draft', Colors.grey),
-      ProjectStatusChip.generating => ('Generating', Colors.orange),
-      ProjectStatusChip.ready => ('Ready', Colors.green),
-      ProjectStatusChip.rendering => ('Rendering', Colors.blue),
-      ProjectStatusChip.failed => ('Failed', Colors.red),
+    final (label, appStatus) = switch (status) {
+      ProjectStatusChip.draft => ('Draft', AppStatus.neutral),
+      ProjectStatusChip.generating => ('Generating', AppStatus.generating),
+      ProjectStatusChip.ready => ('Ready', AppStatus.success),
+      ProjectStatusChip.rendering => ('Rendering', AppStatus.info),
+      ProjectStatusChip.failed => ('Failed', AppStatus.error),
     };
-    return Chip(
-      label: Text(
-        label,
-        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
-      ),
-      backgroundColor: color.withValues(alpha: 0.15),
-      labelStyle: TextStyle(color: color),
-      visualDensity: VisualDensity.compact,
-      side: BorderSide.none,
-      padding: const EdgeInsets.symmetric(horizontal: 4),
-    );
+    return StatusBadge(label: label, status: appStatus);
   }
 }

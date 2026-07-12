@@ -26,4 +26,6 @@ export const Errors = {
 	rateLimited: (c: Context, message = "Too many requests") =>
 		errJson(c, 429, "rate_limited", message),
 	internal: (c: Context, message = "Internal error") => errJson(c, 500, "internal_error", message),
+	serviceUnavailable: (c: Context, message = "Service temporarily unavailable") =>
+		errJson(c, 503, "service_unavailable", message),
 };

@@ -337,12 +337,12 @@ async function notifyDevices(
 	push: { title: string; body: string; data: Record<string, string> },
 ): Promise<void> {
 	try {
-		const devices = await db.query.devices.findMany({ where: eq(schema.devices.userId, userId) });
-		await Promise.all(
-			devices.map((d) => sendFcmPush(env, { token: d.fcmToken, title: push.title, body: push.body, data: push.data })),
-		);
+		const policy=await env.DB.prepare("SELECT u.email,COALESCE(p.push_enabled,1) push_enabled,COALESCE(p.email_enabled,0) email_enabled,COALESCE(p.render_updates,1) render_updates FROM user u LEFT JOIN notification_preferences p ON p.user_id=u.id WHERE u.id=?").bind(userId).first<{email:string;push_enabled:number;email_enabled:number;render_updates:number}>();
+		if(!policy||policy.render_updates!==1)return;
+		if(policy.push_enabled===1){const devices = await db.query.devices.findMany({ where: and(eq(schema.devices.userId, userId),isNull(schema.devices.disabledAt)) });await Promise.all(devices.map((d) => sendFcmPush(env, { token: d.fcmToken, title: push.title, body: push.body, data: push.data })));}
+		if(policy.email_enabled===1&&policy.email){try{await env.EMAIL.send({to:policy.email,from:{email:env.EMAIL_FROM_ADDRESS,name:env.EMAIL_FROM_NAME},subject:push.title,text:push.body,html:`<p>${push.body.replace(/[&<>]/g,ch=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[ch]!))}</p>`});}catch(error){console.error("render transactional email failed",error);}}
 	} catch (err) {
-		// Never let a push failure fail the render pipeline.
+		// Never let a notification delivery failure fail the render pipeline.
 		console.error("notifyDevices failed", err);
 	}
 }

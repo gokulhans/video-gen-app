@@ -11,6 +11,8 @@
     "logs": { "head_sampling_rate": 1 },
     "traces": { "enabled": true, "head_sampling_rate": 0.05 }
   },
+	"vars": { "EMAIL_FROM_ADDRESS": "notifications@mail.zellyo.in", "EMAIL_FROM_NAME": "Zellyo" },
+	"send_email": [{ "name": "EMAIL" }],
 
   // Stuck-job reaper (plan §8 Phase 3): every 10 minutes
   "triggers": {

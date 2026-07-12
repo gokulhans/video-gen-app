@@ -1,19 +1,15 @@
-export type Env = {
-	DB: D1Database;
-	KV: KVNamespace;
-	ASSETS: Fetcher;
-	AUTH_API_URL?: string;
-};
-
 export type AdminUser = {
 	id: string;
 	email: string;
 	name: string;
+	isSuperAdmin: boolean;
+	permissions: readonly string[];
 };
 
 export type AppBindings = {
-	Bindings: Env;
+	Bindings: Cloudflare.Env;
 	Variables: {
 		adminUser: AdminUser;
+		requestId: string;
 	};
 };

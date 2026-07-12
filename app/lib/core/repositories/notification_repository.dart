@@ -1,42 +1,38 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-
 import '../api_client.dart';
 import '../models/notification.dart';
 
-/// Notifications: list/mark-read; device token registration (CONTRACTS.md).
 class NotificationRepository {
   NotificationRepository(this._api);
-
   final ApiClient _api;
-
-  Future<List<AppNotification>> list() {
-    return _api.get<List<AppNotification>>(
-      '/notifications',
-      parser: (json) => (json as List<dynamic>)
-          .map((e) => AppNotification.fromJson(e as Map<String, dynamic>))
-          .toList(),
-    );
-  }
-
-  Future<void> markRead(String id) {
-    return _api.post<void>('/notifications/$id/read');
-  }
-
-  Future<void> markAllRead() {
-    return _api.post<void>('/notifications/read-all');
-  }
-
+  Future<NotificationPage> list({String? cursor, int limit = 30}) => _api.get(
+    '/notifications',
+    query: {'limit': limit, if (cursor != null) 'cursor': cursor},
+    parser: (json) => NotificationPage.fromJson(json as Map<String, dynamic>),
+  );
+  Future<int> unreadCount() => _api.get(
+    '/notifications/unread-count',
+    parser: (json) => (json as Map<String, dynamic>)['count'] as int,
+  );
+  Future<void> markRead(String id) =>
+      _api.post('/notifications/$id/read', parser: (_) {});
+  Future<void> markAllRead() =>
+      _api.post('/notifications/read-all', parser: (_) {});
   Future<void> registerDevice({
     required String fcmToken,
     required String platform,
-  }) {
-    return _api.post<void>(
-      '/devices/register',
-      body: {'fcmToken': fcmToken, 'platform': platform},
-    );
-  }
+  }) => _api.post(
+    '/devices/register',
+    body: {'fcmToken': fcmToken, 'platform': platform},
+    parser: (_) {},
+  );
+  Future<void> unregisterDevice(String fcmToken) => _api.post(
+    '/devices/unregister',
+    body: {'fcmToken': fcmToken},
+    parser: (_) {},
+  );
 }
 
-final notificationRepositoryProvider = Provider<NotificationRepository>((ref) {
-  return NotificationRepository(ref.watch(apiClientProvider));
-});
+final notificationRepositoryProvider = Provider(
+  (ref) => NotificationRepository(ref.watch(apiClientProvider)),
+);

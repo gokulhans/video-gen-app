@@ -3,6 +3,7 @@ import { eq } from "drizzle-orm";
 import { getDb, schema } from "@app/db";
 import { err } from "@app/shared";
 import type { AppBindings } from "../types.js";
+import { parsePermissions } from "../lib/permissions.js";
 
 /**
  * Bearer-token session check against the D1 `session` table (better-auth's
@@ -38,10 +39,16 @@ export async function requireAdmin(c: Context<AppBindings>, next: Next) {
 	if (row.expiresAt.getTime() < Date.now()) {
 		return c.json(err("UNAUTHORIZED", "Session expired"), 401);
 	}
-	if (!row.isAdmin) {
+	const roleRows = await db
+		.select({ permissions: schema.adminRoles.permissions })
+		.from(schema.adminUserRoles)
+		.innerJoin(schema.adminRoles, eq(schema.adminUserRoles.roleId, schema.adminRoles.id))
+		.where(eq(schema.adminUserRoles.userId, row.userId));
+	const permissions = [...new Set(roleRows.flatMap((role) => parsePermissions(role.permissions)))];
+	if (!row.isAdmin && permissions.length === 0) {
 		return c.json(err("FORBIDDEN", "Admin access required"), 403);
 	}
 
-	c.set("adminUser", { id: row.userId, email: row.email, name: row.name });
+	c.set("adminUser", { id: row.userId, email: row.email, name: row.name, isSuperAdmin: row.isAdmin, permissions });
 	await next();
 }

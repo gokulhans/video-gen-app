@@ -2,17 +2,19 @@ name: Deploy render worker + container
 
 on:
   workflow_dispatch: {}
-  push:
-    branches: [main, master]
-    paths:
-      - "api/apps/render/**"
-      - "api/containers/renderer/**"
-      - "api/packages/**"
-      - ".github/workflows/deploy-render-container.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-render-production
+  cancel-in-progress: false
 
 jobs:
   deploy:
+    environment: production
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
 
@@ -30,9 +32,17 @@ jobs:
         working-directory: api
         run: pnpm install --frozen-lockfile
 
+      - name: Typecheck render Worker
+        working-directory: api/apps/render
+        run: pnpm typecheck
+
+      - name: Validate Worker bundle before deployment
+        working-directory: api/apps/render
+        run: pnpm exec wrangler deploy --dry-run --outdir .wrangler/release-dry-run
+
       - name: Deploy render worker (builds container image with Docker)
         working-directory: api/apps/render
-        run: npx wrangler deploy
+        run: pnpm exec wrangler deploy
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: 58f07fb13c26e83dd6109d957083478d

@@ -115,9 +115,17 @@ class ApiClient {
   Future<T> patch<T>(
     String path, {
     Object? body,
+    Map<String, dynamic>? headers,
     T Function(dynamic json)? parser,
   }) {
-    return _request(() => _dio.patch(path, data: body), parser: parser);
+    return _request(
+      () => _dio.patch(
+        path,
+        data: body,
+        options: Options(headers: headers),
+      ),
+      parser: parser,
+    );
   }
 
   Future<T> put<T>(
@@ -139,6 +147,39 @@ class ApiClient {
         receiveTimeout: const Duration(minutes: 5),
       ),
     ).download(url, savePath);
+  }
+
+  /// Uploads bytes to a server-issued, short-lived URL. This intentionally
+  /// uses an isolated Dio instance so application auth is never sent to R2.
+  Future<void> putPresigned(
+    String url,
+    List<int> bytes, {
+    required String contentType,
+  }) async {
+    try {
+      await Dio(
+        BaseOptions(
+          connectTimeout: const Duration(seconds: 20),
+          sendTimeout: const Duration(minutes: 2),
+          receiveTimeout: const Duration(seconds: 30),
+        ),
+      ).put<void>(
+        url,
+        data: Stream.fromIterable([bytes]),
+        options: Options(
+          headers: {
+            Headers.contentTypeHeader: contentType,
+            Headers.contentLengthHeader: bytes.length,
+          },
+        ),
+      );
+    } on DioException catch (error) {
+      throw ApiException(
+        'UPLOAD_FAILED',
+        'The selected file could not be uploaded',
+        statusCode: error.response?.statusCode,
+      );
+    }
   }
 
   Dio get raw => _dio;

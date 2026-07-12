@@ -20,6 +20,9 @@ export interface Env {
 
 	// Push notifications
 	FCM_SERVICE_ACCOUNT_JSON: string;
+	EMAIL: SendEmail;
+	EMAIL_FROM_ADDRESS: string;
+	EMAIL_FROM_NAME: string;
 }
 
 /**

@@ -1,12 +1,13 @@
 import { AwsClient } from "aws4fetch";
 import type { Env } from "../env";
 
-export type PresignBucket = "assets" | "renders" | "uploads";
+export type PresignBucket = "assets" | "renders" | "uploads" | "exports";
 
 const BUCKET_NAMES: Record<PresignBucket, string> = {
 	assets: "assets",
 	renders: "renders",
 	uploads: "uploads",
+	exports: "exports",
 };
 
 function client(env: Env) {

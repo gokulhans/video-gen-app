@@ -5,6 +5,7 @@ import { eq } from "drizzle-orm";
 import { getDb, schema } from "@app/db";
 import { ok, err } from "@app/shared";
 import type { AppBindings } from "../types.js";
+import { writeAudit } from "../lib/audit.js";
 
 const app = new Hono<AppBindings>();
 
@@ -19,6 +20,7 @@ const costSchema = z.object({
 	cost: z.number().int().min(0),
 	description: z.string().optional(),
 	isActive: z.boolean().optional(),
+	reason: z.string().trim().min(3).max(500),
 });
 
 // PUT /api/admin/token-costs/:action  — upsert by action, bust KV "costs" cache
@@ -55,6 +57,7 @@ app.put("/:action", async (c) => {
 	await c.env.KV.delete("costs");
 
 	const [row] = await db.select().from(schema.tokenCosts).where(eq(schema.tokenCosts.action, action)).limit(1);
+	await writeAudit(c, { action: "legacy_token_cost.update", targetType: "token_cost", targetId: action, reason: parsed.data.reason, before: existing[0] ?? null, after: row });
 	return c.json(ok(row));
 });
 

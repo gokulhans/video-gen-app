@@ -10,6 +10,7 @@
 		"logs": { "head_sampling_rate": 1 },
 		"traces": { "enabled": true, "head_sampling_rate": 0.05 }
 	},
+	"triggers": { "crons": ["17 */6 * * *"] },
 
 	// ---- D1 ----
 	"d1_databases": [
@@ -34,7 +35,13 @@
 		{ "binding": "ASSETS_BUCKET", "bucket_name": "assets" },
 		{ "binding": "RENDERS_BUCKET", "bucket_name": "renders" },
 		{ "binding": "UPLOADS_BUCKET", "bucket_name": "uploads" }
+		,{ "binding": "EXPORTS_BUCKET", "bucket_name": "exports" }
 	],
+
+	// ---- Stream (signed playback + video details; no API token required) ----
+	"stream": {
+		"binding": "STREAM"
+	},
 
 	// ---- Queues (producer only, apps/render is the consumer) ----
 	"queues": {
@@ -49,6 +56,12 @@
 			"binding": "GENERATION_PIPELINE",
 			"name": "generation-pipeline",
 			"class_name": "GenerationPipeline",
+			"script_name": "pipeline"
+		},
+		{
+			"binding": "P_VIDEO_GENERATION",
+			"name": "p-video-generation",
+			"class_name": "PVideoGenerationWorkflow",
 			"script_name": "pipeline"
 		},
 		{
@@ -68,6 +81,18 @@
 			"name": "rewrite-script",
 			"class_name": "RewriteScript",
 			"script_name": "pipeline"
+		},
+		{
+			"binding": "DATA_EXPORT_WORKFLOW",
+			"name": "data-export",
+			"class_name": "DataExportWorkflow",
+			"script_name": "pipeline"
+		},
+		{
+			"binding": "ACCOUNT_DELETION_WORKFLOW",
+			"name": "account-deletion",
+			"class_name": "AccountDeletionWorkflow",
+			"script_name": "pipeline"
 		}
 	],
 
@@ -81,10 +106,13 @@
 		"AI_GATEWAY_BASE_URL": "https://gateway.ai.cloudflare.com/v1/58f07fb13c26e83dd6109d957083478d/ai-video",
 		"APP_BASE_URL": "https://api.gokulhansv.workers.dev",
 		"ALLOWED_ORIGINS": "",
+		// Set this to the unique code from the Cloudflare Stream dashboard.
+		"STREAM_CUSTOMER_CODE": "replace-with-stream-customer-code",
 		"PLAY_TOKEN_PACKS_JSON": "{\"tokens_500\":500,\"tokens_1500\":1500,\"tokens_5000\":5000}"
 	}
 
 	// Secrets (set via `wrangler secret put <NAME>`, NOT stored here):
+	// MEDIA_INGEST_SIGNING_SECRET must match pipeline (private R2-to-Stream ingest).
 	// OPENAI_API_KEY, GEMINI_API_KEY, REPLICATE_API_TOKEN, FCM_SERVICE_ACCOUNT_JSON,
 	// EMAIL_API_KEY, BETTER_AUTH_SECRET, GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET,
 	// R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY (R2 S3-API creds for

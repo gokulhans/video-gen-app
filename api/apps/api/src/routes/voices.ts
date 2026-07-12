@@ -1,37 +1,58 @@
+import { and, asc, eq } from "drizzle-orm";
 import { Hono } from "hono";
+import { getDb, schema } from "@app/db";
 import type { AppEnv } from "../env";
-import { okJson } from "../lib/response";
-
-/**
- * Static voice catalog. Sample MP3s live in ASSETS_BUCKET under voices/<id>.mp3
- * (generated offline — see the old repo's generate-voice-samples scripts) and
- * are served via the assets download-url flow or a public bucket domain.
- * Voice ids prefixed "gemini:" are synthesized by Gemini TTS in the pipeline;
- * all others use OpenAI TTS.
- */
-const VOICES = [
-	{ id: "alloy", name: "Alloy", provider: "openai", gender: "neutral", languages: ["en", "hi"] },
-	{ id: "echo", name: "Echo", provider: "openai", gender: "male", languages: ["en", "hi"] },
-	{ id: "fable", name: "Fable", provider: "openai", gender: "male", languages: ["en"] },
-	{ id: "onyx", name: "Onyx", provider: "openai", gender: "male", languages: ["en", "hi"] },
-	{ id: "nova", name: "Nova", provider: "openai", gender: "female", languages: ["en", "hi"] },
-	{ id: "shimmer", name: "Shimmer", provider: "openai", gender: "female", languages: ["en"] },
-	{ id: "gemini:Kore", name: "Kore", provider: "gemini", gender: "female", languages: ["en", "hi", "ta", "te", "ml", "kn"] },
-	{ id: "gemini:Puck", name: "Puck", provider: "gemini", gender: "male", languages: ["en", "hi", "ta", "te", "ml", "kn"] },
-	{ id: "gemini:Charon", name: "Charon", provider: "gemini", gender: "male", languages: ["en", "hi", "ta", "te", "ml", "kn"] },
-	{ id: "gemini:Aoede", name: "Aoede", provider: "gemini", gender: "female", languages: ["en", "hi", "ta", "te", "ml", "kn"] },
-].map((v) => ({ ...v, sampleKey: `voices/${v.id.replace(":", "_")}.mp3` }));
+import { Errors, okJson } from "../lib/response";
+import { presignGet } from "../lib/r2";
 
 export const voices = new Hono<AppEnv>();
 
-voices.get("/", (c) => {
-	const language = c.req.query("language");
-	const rows = (language ? VOICES.filter((voice) => voice.languages.includes(language)) : VOICES)
-		.map((voice) => ({
-			...voice,
-			label: voice.name,
-			language: language ?? voice.languages[0],
-			sampleUrl: `${c.env.APP_BASE_URL.replace(/\/$/, "")}/assets/${voice.sampleKey}`,
-		}));
-	return okJson(c, rows);
+voices.get("/", async (c) => {
+	const userId = c.get("userId");
+	const locale = c.req.query("locale") ?? c.req.query("language");
+	const db = getDb(c.env.DB);
+	const rows = await db.select().from(schema.voices)
+		.where(locale
+			? and(eq(schema.voices.isActive, true), eq(schema.voices.locale, locale))
+			: eq(schema.voices.isActive, true))
+		.orderBy(asc(schema.voices.sortOrder), asc(schema.voices.name));
+	const favorites = await db.select({ voiceId: schema.voiceFavorites.voiceId })
+		.from(schema.voiceFavorites).where(eq(schema.voiceFavorites.userId, userId));
+	const favoriteIds = new Set(favorites.map((row) => row.voiceId));
+	return okJson(c, await Promise.all(rows.map(async (voice) => ({
+		id: voice.id,
+		slug: voice.slug,
+		name: voice.name,
+		label: voice.name,
+		locale: voice.locale,
+		style: voice.style,
+		tags: Array.isArray(voice.tags) ? voice.tags : [],
+		isPremium: voice.isPremium,
+		isFavorite: favoriteIds.has(voice.id),
+		sampleAssetKey: voice.sampleAssetKey,
+		sampleUrl: voice.sampleAssetKey ? await presignGet(c.env, "assets", voice.sampleAssetKey) : null,
+		sampleExpiresInSeconds: voice.sampleAssetKey ? 600 : null,
+	}))));
+});
+
+voices.put("/:voiceId/favorite", async (c) => {
+	const userId = c.get("userId");
+	const voiceId = c.req.param("voiceId");
+	const db = getDb(c.env.DB);
+	const voice = await db.select({ id: schema.voices.id }).from(schema.voices)
+		.where(and(eq(schema.voices.id, voiceId), eq(schema.voices.isActive, true))).get();
+	if (!voice) return Errors.notFound(c, "Voice not found");
+	await db.insert(schema.voiceFavorites).values({ userId, voiceId, createdAt: Date.now() })
+		.onConflictDoNothing();
+	return okJson(c, { voiceId, isFavorite: true });
+});
+
+voices.delete("/:voiceId/favorite", async (c) => {
+	const userId = c.get("userId");
+	const voiceId = c.req.param("voiceId");
+	await getDb(c.env.DB).delete(schema.voiceFavorites).where(and(
+		eq(schema.voiceFavorites.userId, userId),
+		eq(schema.voiceFavorites.voiceId, voiceId),
+	));
+	return okJson(c, { voiceId, isFavorite: false });
 });

@@ -1,0 +1,9 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": false,
+    "outDir": ".test-dist/workflows",
+    "rootDir": "src/workflows"
+  },
+  "include": ["src/workflows/generation-lifecycle.ts", "src/workflows/stream-publication.ts", "src/workflows/account-lifecycle-policy.ts"]
+}

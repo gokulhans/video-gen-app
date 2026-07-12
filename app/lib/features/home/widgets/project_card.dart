@@ -28,7 +28,8 @@ class ProjectCard extends StatelessWidget {
                     ? CachedNetworkImage(
                         imageUrl: project.thumbnailUrl!,
                         fit: BoxFit.cover,
-                        errorWidget: (_, __, ___) => const _PlaceholderThumb(),
+                        errorWidget: (context, error, stackTrace) =>
+                            const _PlaceholderThumb(),
                       )
                     : const _PlaceholderThumb(),
               ),

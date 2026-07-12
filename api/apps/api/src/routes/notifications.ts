@@ -1,49 +1,49 @@
 import { Hono } from "hono";
-import { eq, and, desc } from "drizzle-orm";
+import { and, desc, eq, lt, or, sql } from "drizzle-orm";
 import { getDb, schema } from "@app/db";
 import type { AppEnv } from "../env";
 import { Errors, okJson } from "../lib/response";
+import { decodeNotificationCursor,encodeNotificationCursor,notificationDeepLink } from "../lib/brand-notification";
 
 export const notifications = new Hono<AppEnv>();
 
-// ---------- GET / (list, newest first) ----------
+function withDeepLink<T extends { deepLink: string | null; jobId: string | null; projectId: string | null; type: string }>(row: T) {
+	return { ...row, deepLink:notificationDeepLink(row) };
+}
+
+notifications.get("/unread-count", async (c) => {
+	const row = await getDb(c.env.DB).select({ count: sql<number>`count(*)` }).from(schema.notifications)
+		.where(and(eq(schema.notifications.userId,c.get("userId")),eq(schema.notifications.isRead,false))).get();
+	return okJson(c,{ count:Number(row?.count ?? 0) });
+});
+
 notifications.get("/", async (c) => {
-	const userId = c.get("userId");
-	const db = getDb(c.env.DB);
-	const limit = Math.min(100, Math.max(1, Number(c.req.query("limit") ?? 50) || 50));
-	const rows = await db
-		.select()
-		.from(schema.notifications)
-		.where(eq(schema.notifications.userId, userId))
-		.orderBy(desc(schema.notifications.createdAt))
-		.limit(limit);
-	return okJson(c, rows);
+	const limit = Math.min(100,Math.max(1,Number(c.req.query("limit") ?? 30) || 30));
+	const rawCursor = c.req.query("cursor");
+	const cursor = decodeNotificationCursor(rawCursor);
+	if (rawCursor && !cursor) return Errors.validation(c,"Invalid notification cursor");
+	const predicates = [eq(schema.notifications.userId,c.get("userId"))];
+	if (cursor) predicates.push(or(
+		lt(schema.notifications.createdAt,cursor.createdAt),
+		and(eq(schema.notifications.createdAt,cursor.createdAt),lt(schema.notifications.id,cursor.id)),
+	)!);
+	const rows = await getDb(c.env.DB).select().from(schema.notifications).where(and(...predicates))
+		.orderBy(desc(schema.notifications.createdAt),desc(schema.notifications.id)).limit(limit+1);
+	const page = rows.slice(0,limit);
+	const last = page.at(-1);
+	return okJson(c,{ items:page.map(withDeepLink), nextCursor:rows.length>limit && last ? encodeNotificationCursor(last.createdAt,last.id) : null });
 });
 
-// ---------- POST /:id/read ----------
-notifications.post("/:id/read", async (c) => {
-	const userId = c.get("userId");
-	const id = c.req.param("id");
-	const db = getDb(c.env.DB);
-
-	const existing = await db
-		.select({ id: schema.notifications.id })
-		.from(schema.notifications)
-		.where(and(eq(schema.notifications.id, id), eq(schema.notifications.userId, userId)))
-		.get();
-	if (!existing) return Errors.notFound(c, "Notification not found");
-
-	await db.update(schema.notifications).set({ isRead: true }).where(eq(schema.notifications.id, id));
-	return okJson(c, { id, isRead: true });
-});
-
-// ---------- POST /read-all ----------
 notifications.post("/read-all", async (c) => {
-	const userId = c.get("userId");
-	const db = getDb(c.env.DB);
-	await db
-		.update(schema.notifications)
-		.set({ isRead: true })
-		.where(eq(schema.notifications.userId, userId));
-	return okJson(c, { ok: true });
+	const now=Date.now();
+	await getDb(c.env.DB).update(schema.notifications).set({ isRead:true,readAt:now })
+		.where(and(eq(schema.notifications.userId,c.get("userId")),eq(schema.notifications.isRead,false)));
+	return okJson(c,{ ok:true,readAt:now });
+});
+
+notifications.post("/:id/read", async (c) => {
+	const now=Date.now();
+	const result=await c.env.DB.prepare("UPDATE notifications SET is_read=1,read_at=COALESCE(read_at,?) WHERE id=? AND user_id=?")
+		.bind(now,c.req.param("id"),c.get("userId")).run();
+	return (result.meta.changes ?? 0)>0 ? okJson(c,{ id:c.req.param("id"),isRead:true,readAt:now }) : Errors.notFound(c,"Notification not found");
 });

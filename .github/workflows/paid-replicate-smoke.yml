@@ -1,0 +1,39 @@
+name: Paid Replicate smoke (manual)
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirmation:
+        description: Type RUN_ONE_PAID_PVIDEO_TEST
+        required: true
+        type: string
+      max_usd:
+        description: Hard operator budget acknowledgment (maximum 0.01 USD)
+        required: true
+        default: "0.01"
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: paid-replicate-smoke
+  cancel-in-progress: false
+
+jobs:
+  one_prediction:
+    if: inputs.confirmation == 'RUN_ONE_PAID_PVIDEO_TEST' && fromJSON(inputs.max_usd) > 0 && fromJSON(inputs.max_usd) <= 0.01
+    environment: paid-smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Create exactly one 1-second draft prediction (no create retry)
+        run: node scripts/paid-replicate-smoke.mjs
+        env:
+          ALLOW_PAID_REPLICATE_SMOKE: ${{ inputs.confirmation }}
+          REPLICATE_SMOKE_MAX_USD: ${{ inputs.max_usd }}
+          REPLICATE_API_TOKEN: ${{ secrets.REPLICATE_API_TOKEN }}

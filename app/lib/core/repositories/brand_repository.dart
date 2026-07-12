@@ -3,42 +3,68 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../api_client.dart';
 import '../models/brand.dart';
 
-/// `brands` CRUD, per CONTRACTS.md ("brands CRUD").
 class BrandRepository {
   BrandRepository(this._api);
-
   final ApiClient _api;
 
-  Future<List<Brand>> listBrands() {
-    return _api.get<List<Brand>>(
-      '/brands',
-      parser: (json) => (json as List<dynamic>)
-          .map((e) => Brand.fromJson(e as Map<String, dynamic>))
-          .toList(),
-    );
-  }
+  Future<List<Brand>> listBrands({bool includeArchived = false}) =>
+      _api.get<List<Brand>>(
+        '/brands',
+        query: {'includeArchived': includeArchived},
+        parser: (json) => (json as List<dynamic>)
+            .map((item) => Brand.fromJson(item as Map<String, dynamic>))
+            .toList(),
+      );
 
-  Future<Brand> createBrand(Brand brand) {
-    return _api.post<Brand>(
+  Future<Brand> createBrand(
+    Brand brand, {
+    String? logoAssetId,
+    required String idempotencyKey,
+  }) async {
+    Future<Brand> request() => _api.post<Brand>(
       '/brands',
-      body: brand.toJson(),
+      headers: {'Idempotency-Key': idempotencyKey},
+      body: {
+        ...brand.toJson(),
+        if (logoAssetId != null) 'logoAssetId': logoAssetId,
+      },
       parser: (json) => Brand.fromJson(json as Map<String, dynamic>),
     );
+    try {
+      return await request();
+    } catch (_) {
+      return request();
+    }
   }
 
-  Future<Brand> updateBrand(String id, Brand brand) {
-    return _api.patch<Brand>(
+  Future<Brand> updateBrand(
+    String id,
+    Brand brand, {
+    String? logoAssetId,
+    required String idempotencyKey,
+  }) async {
+    Future<Brand> request() => _api.patch<Brand>(
       '/brands/$id',
-      body: brand.toJson(),
+      headers: {'Idempotency-Key': idempotencyKey},
+      body: {
+        ...brand.toJson(),
+        if (logoAssetId != null) 'logoAssetId': logoAssetId,
+      },
       parser: (json) => Brand.fromJson(json as Map<String, dynamic>),
     );
+    try {
+      return await request();
+    } catch (_) {
+      return request();
+    }
   }
 
-  Future<void> deleteBrand(String id) {
-    return _api.delete<void>('/brands/$id');
-  }
+  Future<void> archiveBrand(String id) =>
+      _api.post<void>('/brands/$id/archive', parser: (_) {});
+
+  Future<void> deleteBrand(String id) => archiveBrand(id);
 }
 
-final brandRepositoryProvider = Provider<BrandRepository>((ref) {
-  return BrandRepository(ref.watch(apiClientProvider));
-});
+final brandRepositoryProvider = Provider<BrandRepository>(
+  (ref) => BrandRepository(ref.watch(apiClientProvider)),
+);

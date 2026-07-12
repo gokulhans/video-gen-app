@@ -34,6 +34,10 @@ Set via `wrangler secret put <NAME>` (per environment):
 
 ## Vars
 
+Also set `MEDIA_INGEST_SIGNING_SECRET` to the same high-entropy value on the
+API Worker. It signs 15-minute, path-bound URLs used only for Stream to ingest
+private R2 generation masters.
+
 - `AI_GATEWAY_BASE_URL` — Cloudflare AI Gateway prefix, e.g.
   `https://gateway.ai.cloudflare.com/v1/<account_id>/<gateway_id>`. Provider
   calls are appended as `/openai/...` and `/google-ai-studio/v1beta/models/...`.
@@ -61,8 +65,17 @@ wrangler secret put OPENAI_API_KEY
 wrangler secret put GEMINI_API_KEY
 wrangler secret put REPLICATE_API_TOKEN
 wrangler secret put FCM_SERVICE_ACCOUNT_JSON
+wrangler secret put MEDIA_INGEST_SIGNING_SECRET
 wrangler deploy
 ```
+
+Cloudflare Stream is configured through the native `STREAM` binding in
+`wrangler.jsonc`; it does not require a Stream API token. P-Video generations
+retain their durable MP4 master in R2, then create a separate signed-playback
+asset in Stream. The Workflow checkpoints the Stream UID before polling
+`readyToStream`, so encoding retries never re-upload a completed master.
+R2 masters remain private: Stream receives an expiring HMAC URL served by the
+API Worker, and the legacy public asset route rejects generation master keys.
 
 Fill in `database_id` and the real `AI_GATEWAY_BASE_URL` in `wrangler.jsonc`
 before deploying (placeholders are marked `<...>`).

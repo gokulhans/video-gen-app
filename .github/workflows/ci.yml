@@ -13,7 +13,8 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  api:
+  node:
+    name: Node packages
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -29,10 +30,70 @@ jobs:
           cache: pnpm
           cache-dependency-path: api/pnpm-lock.yaml
       - run: pnpm install --frozen-lockfile
-      - run: pnpm typecheck
-      - run: pnpm audit --prod --audit-level high
+      - name: Typecheck every workspace package
+        run: pnpm -r --if-present typecheck
+      - name: Test every workspace package with tests
+        run: pnpm -r --if-present test
+      - name: Admin static JavaScript syntax
+        run: pnpm --filter @app/admin check:static
+      - name: Renderer container syntax
+        run: node --check containers/renderer/server.mjs
+
+  d1:
+    name: D1 migrations, seed, and foreign keys
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: api/pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+        working-directory: api
+      - run: node scripts/validate-d1.mjs
+
+  workers:
+    name: Wrangler dry-run (${{ matrix.worker }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        worker: [admin, api, pipeline, render]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: api/pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+        working-directory: api
+      - name: Validate generated binding types
+        if: matrix.worker == 'api' || matrix.worker == 'pipeline'
+        run: pnpm exec wrangler types --check
+        working-directory: api/apps/${{ matrix.worker }}
+      - name: Bundle Worker without credentials or deployment
+        if: matrix.worker != 'render'
+        run: pnpm exec wrangler deploy --dry-run --outdir .wrangler/ci-dry-run
+        working-directory: api/apps/${{ matrix.worker }}
+      - name: Bundle render Worker without changing the container
+        if: matrix.worker == 'render'
+        run: pnpm exec wrangler deploy --dry-run --containers-rollout=none --outdir .wrangler/ci-dry-run
+        working-directory: api/apps/render
+      - name: Build renderer container image locally
+        if: matrix.worker == 'render'
+        run: docker build --tag ai-video-renderer:ci containers/renderer
+        working-directory: api
 
   flutter:
+    name: Flutter checks and debug APK
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -47,3 +108,31 @@ jobs:
       - run: dart format --output=none --set-exit-if-changed lib test
       - run: flutter analyze --no-fatal-infos
       - run: flutter test
+      - name: Compile Android debug application against a non-production origin
+        run: >-
+          flutter build apk --debug
+          --dart-define=API_BASE_URL=https://staging.invalid/api/v1
+          --dart-define=AUTH_BASE_URL=https://staging.invalid/api/auth
+
+  security:
+    name: Secrets and dependency audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: api/pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+        working-directory: api
+      - run: pnpm audit --prod --audit-level high
+        working-directory: api

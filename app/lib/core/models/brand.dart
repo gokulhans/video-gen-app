@@ -16,6 +16,8 @@ class Brand extends Equatable {
     this.website,
     this.watermark = true,
     this.logoPosition = LogoPosition.topRight,
+    this.version = 1,
+    this.archived = false,
   });
 
   final String id;
@@ -28,6 +30,8 @@ class Brand extends Equatable {
   final String? website;
   final bool watermark;
   final LogoPosition logoPosition;
+  final int version;
+  final bool archived;
 
   factory Brand.fromJson(Map<String, dynamic> json) => Brand(
     id: json['id'] as String,
@@ -40,6 +44,8 @@ class Brand extends Equatable {
     website: json['website'] as String?,
     watermark: json['watermark'] as bool? ?? true,
     logoPosition: LogoPositionX.fromWire(json['logoPosition'] as String?),
+    version: (json['version'] as num?)?.toInt() ?? 1,
+    archived: json['archived'] as bool? ?? false,
   );
 
   Map<String, dynamic> toJson() => {
@@ -75,5 +81,7 @@ class Brand extends Equatable {
     website,
     watermark,
     logoPosition,
+    version,
+    archived,
   ];
 }

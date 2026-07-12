@@ -11,11 +11,16 @@ export interface Env {
 	ASSETS_BUCKET: R2Bucket;
 	RENDERS_BUCKET: R2Bucket;
 	UPLOADS_BUCKET: R2Bucket;
+	EXPORTS_BUCKET: R2Bucket;
+	STREAM: StreamBinding;
 	RENDER_QUEUE: Queue<RenderQueueMessage>;
 	GENERATION_PIPELINE: Workflow;
+	P_VIDEO_GENERATION: Workflow<{ jobId: string; userId: string }>;
 	REGEN_IMAGE: Workflow;
 	REGEN_VOICE: Workflow;
 	REWRITE_SCRIPT: Workflow;
+	DATA_EXPORT_WORKFLOW: Workflow<{ requestId: string; userId: string }>;
+	ACCOUNT_DELETION_WORKFLOW: Workflow<{ requestId: string; userId: string; scheduledFor: number }>;
 	RENDER_SERVICE: Fetcher;
 
 	// Secrets (CONTRACTS.md)
@@ -35,16 +40,22 @@ export interface Env {
 	R2_SECRET_ACCESS_KEY: string;
 	GOOGLE_PLAY_SERVICE_ACCOUNT_JSON: string;
 	GOOGLE_PLAY_PACKAGE_NAME: string;
+	/** Shared only with the pipeline Worker; signs private R2-to-Stream ingest URLs. */
+	MEDIA_INGEST_SIGNING_SECRET: string;
+	DELETION_TOMBSTONE_SECRET: string;
 	PLAY_TOKEN_PACKS_JSON: string;
 
 	// Env vars (CONTRACTS.md)
 	AI_GATEWAY_BASE_URL: string;
 	APP_BASE_URL: string;
 	ALLOWED_ORIGINS?: string;
+	/** Unique code shown in the Stream dashboard, without `customer-`. */
+	STREAM_CUSTOMER_CODE: string;
 }
 
 export type Variables = {
 	userId: string;
+	requestId: string;
 	session: { id: string; userId: string; token: string };
 };
 

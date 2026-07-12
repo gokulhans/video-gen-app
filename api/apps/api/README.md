@@ -58,6 +58,7 @@ wrangler secret put R2_SECRET_ACCESS_KEY
 # service account). Full service-account JSON blob, PKCS#8 private key.
 wrangler secret put GOOGLE_PLAY_SERVICE_ACCOUNT_JSON
 wrangler secret put GOOGLE_PLAY_PACKAGE_NAME
+wrangler secret put MEDIA_INGEST_SIGNING_SECRET # same value on api + pipeline
 ```
 
 ## Deploy
@@ -145,6 +146,13 @@ All under `/api/v1`, Bearer session required (better-auth), zod-validated,
     presigned PUT into `UPLOADS_BUCKET` under `${userId}/${kind}/...`.
   - `POST /assets/download-url` — `{ bucket: "assets"|"renders", key }` →
     presigned GET; 403 unless `key` starts with `${userId}/`.
+  - `GET /assets/generation/:assetId` — tenant-scoped generation media. A
+    Stream playback asset returns signed HLS/DASH URLs; an R2 master returns a
+    short-lived presigned download URL.
+
+Set the non-secret `STREAM_CUSTOMER_CODE` variable to the unique code shown in
+the Cloudflare Stream dashboard (without the `customer-` prefix). The native
+`STREAM` binding generates playback tokens; no Stream REST API token is used.
 
 ## curl examples
 
