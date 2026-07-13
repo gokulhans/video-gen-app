@@ -57,8 +57,8 @@ a file instead. Secrets apply immediately — no redeploy needed.
 | `BETTER_AUTH_SECRET` | all auth (session signing) | any random 32+ chars (`openssl rand -base64 32`) | ✅ set |
 | `MEDIA_INGEST_SIGNING_SECRET` | authenticated API → pipeline media handoff | one shared random value for API and pipeline | ✅ set |
 | `DELETION_TOMBSTONE_SECRET` | irreversible account-deletion tombstones | a separate random value | ✅ set |
-| `R2_ACCOUNT_ID` | presigned upload/download URLs | it's the account id: `58f07fb13c26e83dd6109d957083478d` | ⬜ |
-| `R2_ACCESS_KEY_ID` / `R2_SECRET_ACCESS_KEY` | presigned URLs | Dashboard → R2 → Manage API Tokens → Create API token → permission **Object Read & Write** on buckets `assets`, `renders`, `uploads`, `exports`. Shown once — copy both values | ⬜ |
+| `R2_ACCOUNT_ID` | optional direct S3 upload/download URLs | it's the account id: `58f07fb13c26e83dd6109d957083478d` | ⬜ optional |
+| `R2_ACCESS_KEY_ID` / `R2_SECRET_ACCESS_KEY` | optional direct S3 URLs | Dashboard → R2 → Manage API Tokens → Create API token → permission **Object Read & Write** on buckets `assets`, `renders`, `uploads`, `exports`. Playback uses the Worker R2 binding and does not require these values. | ⬜ optional |
 | `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | Google sign-in | console.cloud.google.com → APIs & Services → Credentials → Create OAuth client (type **Web application**; authorized redirect URI `https://api.gokulhansv.workers.dev/api/auth/callback/google`) | ⬜ optional at first |
 | `GOOGLE_PLAY_SERVICE_ACCOUNT_JSON` | token purchase verification | Play Console → Setup → API access → service account key JSON | ⬜ later, needs Play Console |
 | `GOOGLE_PLAY_PACKAGE_NAME` | same | your final Android applicationId | ⬜ later |
@@ -66,6 +66,8 @@ a file instead. Secrets apply immediately — no redeploy needed.
 `PLAYBACK_PROVIDER` is set to `r2` in production and staging. Stream can be
 enabled later by setting it to `stream` and supplying the corresponding
 customer code; never substitute the Cloudflare account ID.
+
+Direct S3 upload/download is optional. If enabled, configure:
 
 ```powershell
 cd api\apps\api

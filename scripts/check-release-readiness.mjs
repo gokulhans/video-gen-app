@@ -14,13 +14,14 @@ if (!["production", "staging"].includes(environment)) {
 
 const root = fileURLToPath(new URL("..", import.meta.url));
 const workers = [
-  { name: "api", config: "api/apps/api/wrangler.jsonc", required: ["BETTER_AUTH_SECRET", "MEDIA_INGEST_SIGNING_SECRET", "DELETION_TOMBSTONE_SECRET", "R2_ACCOUNT_ID", "R2_ACCESS_KEY_ID", "R2_SECRET_ACCESS_KEY"] },
+  { name: "api", config: "api/apps/api/wrangler.jsonc", required: ["BETTER_AUTH_SECRET", "MEDIA_INGEST_SIGNING_SECRET", "DELETION_TOMBSTONE_SECRET"], optional: ["R2_ACCOUNT_ID", "R2_ACCESS_KEY_ID", "R2_SECRET_ACCESS_KEY"] },
   { name: "pipeline", config: "api/apps/pipeline/wrangler.jsonc", required: ["OPENAI_API_KEY", "GEMINI_API_KEY", "REPLICATE_API_TOKEN", "MEDIA_INGEST_SIGNING_SECRET"] },
   { name: "render", config: "api/apps/render/wrangler.jsonc", required: ["R2_ACCOUNT_ID", "R2_ACCESS_KEY_ID", "R2_SECRET_ACCESS_KEY"] },
   { name: "admin", config: "api/apps/admin/wrangler.jsonc", required: [] },
 ];
 
 const failures = [];
+const warnings = [];
 for (const worker of workers) {
   const configPath = path.join(root, worker.config);
   if (!existsSync(configPath)) {
@@ -57,6 +58,9 @@ for (const worker of workers) {
   for (const secret of worker.required) {
     if (!names.includes(secret)) failures.push(`${worker.name}: missing secret ${secret}`);
   }
+  for (const secret of worker.optional ?? []) {
+    if (!names.includes(secret)) warnings.push(`${worker.name}: optional secret ${secret} is not configured (direct S3 upload/download disabled)`);
+  }
 }
 
 if (failures.length) {
@@ -65,4 +69,5 @@ if (failures.length) {
   process.exitCode = 1;
 } else {
   console.log(`${environment} release readiness: READY (configuration and required secrets present)`);
+  for (const warning of warnings) console.warn(`- ${warning}`);
 }

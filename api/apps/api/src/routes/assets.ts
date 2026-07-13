@@ -1,10 +1,11 @@
-import { Hono } from "hono";
+import { Hono, type Context } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 import { getDb, schema } from "@app/db";
 import type { AppEnv } from "../env";
 import {
+	createGenerationMasterIngestToken,
 	createProviderFetchToken,
 	createUploadRegistration,
 	ensureUploadReady,
@@ -22,6 +23,11 @@ import { Errors, okJson } from "../lib/response";
 import { presignGet, presignPut, type PresignBucket } from "../lib/r2";
 
 export const assets = new Hono<AppEnv>();
+
+async function r2GenerationPlaybackUrl(c: Context<AppEnv>, objectKey: string): Promise<string> {
+	const token = await createGenerationMasterIngestToken(c.env.MEDIA_INGEST_SIGNING_SECRET, objectKey);
+	return `${c.env.APP_BASE_URL.replace(/\/$/, "")}/media/generation/${token}`;
+}
 
 const UploadUrlBody = z.object({
 	kind: z.enum(["image", "audio", "video"]),
@@ -221,7 +227,7 @@ assets.get("/generation/:assetId", async (c) => {
 			eq(schema.generationAssets.status, "ready"),
 		)).get();
 		if (!master) return Errors.serviceUnavailable(c, "Generation master is unavailable");
-		const downloadUrl = await presignGet(c.env, "assets", master.objectKey);
+		const playbackUrl = await r2GenerationPlaybackUrl(c, master.objectKey);
 		return okJson(c, {
 			assetId: row.id,
 			jobId: row.jobId,
@@ -233,7 +239,8 @@ assets.get("/generation/:assetId", async (c) => {
 			playback,
 			hlsUrl: playback.hls,
 			dashUrl: playback.dash,
-			downloadUrl,
+			playbackUrl,
+			downloadUrl: playbackUrl,
 			downloadExpiresInSeconds: 600,
 			master: {
 				contentType: master.contentType,
@@ -257,7 +264,7 @@ assets.get("/generation/:assetId", async (c) => {
 			eq(schema.generationAssets.storage, "r2"),
 		)).get();
 		if (!master || master.status !== "ready") return Errors.serviceUnavailable(c, "R2 playback master is unavailable");
-		const downloadUrl = await presignGet(c.env, "assets", master.objectKey);
+		const playbackUrl = await r2GenerationPlaybackUrl(c, master.objectKey);
 		return okJson(c, {
 			assetId: row.id,
 			jobId: row.jobId,
@@ -268,7 +275,8 @@ assets.get("/generation/:assetId", async (c) => {
 			status: "ready",
 			createdAt: row.createdAt,
 			readyAt: row.readyAt,
-			downloadUrl,
+			playbackUrl,
+			downloadUrl: playbackUrl,
 			expiresInSeconds: 600,
 		});
 	}
@@ -276,7 +284,9 @@ assets.get("/generation/:assetId", async (c) => {
 		: row.storage === "r2" || row.storage === "assets" ? "assets"
 		: null;
 	if (!bucket) return Errors.serviceUnavailable(c, "Generation asset storage is unavailable");
-	const downloadUrl = await presignGet(c.env, bucket, row.objectKey);
+	const downloadUrl = row.storage === "r2"
+		? await r2GenerationPlaybackUrl(c, row.objectKey)
+		: await presignGet(c.env, bucket, row.objectKey);
 	return okJson(c, {
 		assetId: row.id,
 		jobId: row.jobId,
@@ -288,6 +298,7 @@ assets.get("/generation/:assetId", async (c) => {
 		createdAt: row.createdAt,
 		readyAt: row.readyAt,
 		downloadUrl,
+		...(row.storage === "r2" ? { playbackUrl: downloadUrl } : {}),
 		expiresInSeconds: 600,
 	});
 });

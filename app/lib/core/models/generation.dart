@@ -160,21 +160,24 @@ class GenerationAssetDelivery {
     required this.assetId,
     this.hlsUrl,
     this.dashUrl,
+    this.playbackUrlValue,
     this.downloadUrl,
   });
 
   final String assetId;
   final String? hlsUrl;
   final String? dashUrl;
+  final String? playbackUrlValue;
   final String? downloadUrl;
 
-  String? get playbackUrl => hlsUrl ?? dashUrl ?? downloadUrl;
+  String? get playbackUrl => hlsUrl ?? dashUrl ?? playbackUrlValue ?? downloadUrl;
 
   factory GenerationAssetDelivery.fromJson(Map<String, dynamic> json) =>
       GenerationAssetDelivery(
         assetId: json['assetId'] as String,
         hlsUrl: json['hlsUrl'] as String?,
         dashUrl: json['dashUrl'] as String?,
+        playbackUrlValue: json['playbackUrl'] as String?,
         downloadUrl: json['downloadUrl'] as String?,
       );
 }
