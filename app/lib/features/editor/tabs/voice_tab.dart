@@ -135,31 +135,33 @@ class _VoiceTabState extends ConsumerState<VoiceTab> {
             Text('Voice', style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: 8),
             voicesAsync.when(
-              data: (voices) => Column(
-                children: voices
-                    .map(
-                      (v) => RadioListTile<String>(
-                        value: v.id,
-                        groupValue: composition.voice,
-                        title: Text(v.label),
-                        secondary: IconButton(
-                          icon: Icon(
-                            _playingSampleId == v.id
-                                ? Icons.stop_circle
-                                : Icons.play_circle_outline,
+              data: (voices) => RadioGroup<String>(
+                groupValue: composition.voice,
+                onChanged: (value) {
+                  if (value != null) controller.updateVoice(value);
+                },
+                child: Column(
+                  children: voices
+                      .map(
+                        (v) => RadioListTile<String>(
+                          value: v.id,
+                          title: Text(v.label),
+                          secondary: IconButton(
+                            icon: Icon(
+                              _playingSampleId == v.id
+                                  ? Icons.stop_circle
+                                  : Icons.play_circle_outline,
+                            ),
+                            onPressed: () =>
+                                _toggleSamplePlayback(v.id, v.sampleUrl),
                           ),
-                          onPressed: () =>
-                              _toggleSamplePlayback(v.id, v.sampleUrl),
                         ),
-                        onChanged: (value) {
-                          if (value != null) controller.updateVoice(value);
-                        },
-                      ),
-                    )
-                    .toList(),
+                      )
+                      .toList(),
+                ),
               ),
               loading: () => const Center(child: CircularProgressIndicator()),
-              error: (_, __) => const Text('Could not load voices'),
+              error: (_, _) => const Text('Could not load voices'),
             ),
             const SizedBox(height: 16),
             FilledButton.icon(

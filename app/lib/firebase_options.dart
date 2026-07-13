@@ -66,7 +66,7 @@ class DefaultFirebaseOptions {
     storageBucket: 'video-gen-app-16b41.firebasestorage.app',
     iosClientId:
         '729954962607-gn0dggmm785hcb2eq181l9ju9grn792n.apps.googleusercontent.com',
-    iosBundleId: 'com.example.app',
+    iosBundleId: 'com.aivideogen.app',
   );
 
   static const FirebaseOptions macos = FirebaseOptions(
@@ -77,7 +77,7 @@ class DefaultFirebaseOptions {
     storageBucket: 'video-gen-app-16b41.firebasestorage.app',
     iosClientId:
         '729954962607-gn0dggmm785hcb2eq181l9ju9grn792n.apps.googleusercontent.com',
-    iosBundleId: 'com.example.app',
+    iosBundleId: 'com.aivideogen.app',
   );
 
   static const FirebaseOptions windows = FirebaseOptions(

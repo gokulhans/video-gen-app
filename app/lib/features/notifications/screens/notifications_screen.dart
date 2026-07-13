@@ -67,8 +67,9 @@ class _NotificationsState extends ConsumerState<NotificationsScreen> {
             for (final item in [...page.items, ...older]) item.id: item,
           };
           final items = byId.values.toList();
-          if (items.isEmpty)
+          if (items.isEmpty) {
             return const Center(child: Text('No notifications yet'));
+          }
           return LayoutBuilder(
             builder: (context, constraints) {
               final width =
@@ -97,7 +98,7 @@ class _NotificationsState extends ConsumerState<NotificationsScreen> {
                       separatorBuilder: (_, _) =>
                           const SizedBox(height: AppSpacing.xs),
                       itemBuilder: (context, index) {
-                        if (index == items.length)
+                        if (index == items.length) {
                           return Center(
                             child: TextButton.icon(
                               onPressed: loadingMore ? null : _loadMore,
@@ -116,6 +117,7 @@ class _NotificationsState extends ConsumerState<NotificationsScreen> {
                               ),
                             ),
                           );
+                        }
                         final item = items[index];
                         return Card(
                           child: ListTile(
@@ -166,16 +168,18 @@ class _NotificationsState extends ConsumerState<NotificationsScreen> {
           .list(cursor: requestedCursor);
       if (mounted &&
           requestedGeneration == pageGeneration &&
-          cursor == requestedCursor)
+          cursor == requestedCursor) {
         setState(() {
           final existing = older.map((item) => item.id).toSet();
           older.addAll(page.items.where((item) => existing.add(item.id)));
           cursor = page.nextCursor;
           loadMoreError = null;
         });
+      }
     } catch (_) {
-      if (mounted && requestedGeneration == pageGeneration)
+      if (mounted && requestedGeneration == pageGeneration) {
         setState(() => loadMoreError = 'Unable to load older notifications');
+      }
     } finally {
       if (mounted && requestedGeneration == pageGeneration) {
         setState(() => loadingMore = false);
@@ -186,20 +190,22 @@ class _NotificationsState extends ConsumerState<NotificationsScreen> {
   Future<void> _open(AppNotification item) async {
     if (!item.isRead) {
       final index = older.indexWhere((value) => value.id == item.id);
-      if (index >= 0)
+      if (index >= 0) {
         setState(() => older[index] = older[index].copyWith(isRead: true));
+      }
       try {
         await ref.read(notificationRepositoryProvider).markRead(item.id);
         ref.invalidate(notificationPageProvider);
         ref.invalidate(unreadNotificationCountProvider);
       } catch (_) {
         if (index >= 0 && mounted) setState(() => older[index] = item);
-        if (mounted)
+        if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text('Could not mark notification as read'),
             ),
           );
+        }
         return;
       }
     }

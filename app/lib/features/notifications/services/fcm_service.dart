@@ -74,14 +74,17 @@ class FcmService {
     if (explicit != null &&
         RegExp(
           r'^/(generation/[^/]+(?:/result/[^/]+)?|render/(?:(?:progress|result)/)?[^/]+|editor/[^/]+|history|notifications|settings|brands)$',
-        ).hasMatch(explicit))
+        ).hasMatch(explicit)) {
       return explicit;
+    }
     final jobId = message.data['jobId'] as String?;
     final type = message.data['type'] as String? ?? '';
-    if (jobId != null && type.startsWith('generation_'))
+    if (jobId != null && type.startsWith('generation_')) {
       return '/generation/${Uri.encodeComponent(jobId)}';
-    if (jobId != null && type.startsWith('render_'))
+    }
+    if (jobId != null && type.startsWith('render_')) {
       return '/render/progress/${Uri.encodeComponent(jobId)}';
+    }
     final projectId = message.data['projectId'] as String?;
     return projectId == null
         ? null
@@ -91,8 +94,9 @@ class FcmService {
   Future<void> unregisterCurrentToken() async {
     if (!AppConstants.enableFirebase || Firebase.apps.isEmpty) return;
     final token = await _messaging.getToken();
-    if (token != null)
+    if (token != null) {
       await _ref.read(notificationRepositoryProvider).unregisterDevice(token);
+    }
   }
 
   Future<void> _registerToken(String token) async {

@@ -170,7 +170,8 @@ class GenerationAssetDelivery {
   final String? playbackUrlValue;
   final String? downloadUrl;
 
-  String? get playbackUrl => hlsUrl ?? dashUrl ?? playbackUrlValue ?? downloadUrl;
+  String? get playbackUrl =>
+      hlsUrl ?? dashUrl ?? playbackUrlValue ?? downloadUrl;
 
   factory GenerationAssetDelivery.fromJson(Map<String, dynamic> json) =>
       GenerationAssetDelivery(

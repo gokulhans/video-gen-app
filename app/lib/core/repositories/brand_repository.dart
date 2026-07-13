@@ -24,10 +24,7 @@ class BrandRepository {
     Future<Brand> request() => _api.post<Brand>(
       '/brands',
       headers: {'Idempotency-Key': idempotencyKey},
-      body: {
-        ...brand.toJson(),
-        if (logoAssetId != null) 'logoAssetId': logoAssetId,
-      },
+      body: {...brand.toJson(), 'logoAssetId': ?logoAssetId},
       parser: (json) => Brand.fromJson(json as Map<String, dynamic>),
     );
     try {
@@ -46,10 +43,7 @@ class BrandRepository {
     Future<Brand> request() => _api.patch<Brand>(
       '/brands/$id',
       headers: {'Idempotency-Key': idempotencyKey},
-      body: {
-        ...brand.toJson(),
-        if (logoAssetId != null) 'logoAssetId': logoAssetId,
-      },
+      body: {...brand.toJson(), 'logoAssetId': ?logoAssetId},
       parser: (json) => Brand.fromJson(json as Map<String, dynamic>),
     );
     try {

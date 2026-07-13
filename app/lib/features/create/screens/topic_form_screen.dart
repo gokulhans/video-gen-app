@@ -136,7 +136,7 @@ class _TopicFormScreenState extends ConsumerState<TopicFormScreen> {
               height: 96,
               child: Center(child: CircularProgressIndicator()),
             ),
-            error: (_, __) => const Text('Could not load voices'),
+            error: (_, _) => const Text('Could not load voices'),
           ),
           const SizedBox(height: 24),
           _CostEstimateCard(costAsync: costAsync),
@@ -217,7 +217,7 @@ class _CostEstimateCard extends StatelessWidget {
               Text('Estimating cost...'),
             ],
           ),
-          error: (_, __) => const Text('Could not estimate cost'),
+          error: (_, _) => const Text('Could not estimate cost'),
         ),
       ),
     );

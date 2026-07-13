@@ -5,6 +5,7 @@ import { getDb, schema } from "@app/db";
 import type { AppEnv } from "../env";
 import { Errors, okJson } from "../lib/response";
 import { presignGet } from "../lib/r2";
+import { isFreshReauthenticationSession } from "../lib/account-lifecycle";
 
 export const accountLifecycle = new Hono<AppEnv>();
 function key(c:{req:{header(name:string):string|undefined}}){const value=c.req.header("idempotency-key")?.trim();return value&&value.length<=128?value:null;}
@@ -52,8 +53,7 @@ accountLifecycle.post("/deletion-requests/:id/confirm",async(c)=>{
 	if(!request)return Errors.notFound(c,"Deletion request not found");
 	if(request.status==='scheduled')return okJson(c,{requestId,status:"scheduled",workflowInstanceId:request.workflow_instance_id,replayed:true});
 	if(request.status!=='awaiting_reauthentication')return Errors.conflict(c,"Deletion request cannot be confirmed in its current state");
-	const active=await c.env.DB.prepare("SELECT created_at FROM session WHERE id=? AND user_id=?").bind(session.id,userId).first<{created_at:number}>();
-	if(!active||active.created_at<=request.requested_at||now-active.created_at>15*60_000)return Errors.unauthorized(c,"Create a fresh sign-in session after requesting deletion, then confirm within 15 minutes");
+	if(!isFreshReauthenticationSession(session.createdAt,request.requested_at,now))return Errors.unauthorized(c,"Create a fresh sign-in session after requesting deletion, then confirm within 15 minutes");
 	const scheduledFor=now+7*24*60*60_000,workflowId=`account-deletion-${requestId}`;
 	const claimed=await c.env.DB.prepare("UPDATE account_deletion_requests SET status='scheduled',reauthenticated_at=?,scheduled_for=?,confirmed_session_id=?,workflow_instance_id=? WHERE id=? AND user_id=? AND status='awaiting_reauthentication'").bind(now,scheduledFor,session.id,workflowId,requestId,userId).run();
 	if((claimed.meta.changes??0)!==1)return Errors.conflict(c,"Deletion request changed; refresh and retry");

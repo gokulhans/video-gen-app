@@ -26,6 +26,7 @@ import { RenderQueueMessage, RenderRequest, ProjectComposition } from "@app/shar
 import type { Env } from "./index";
 import type { RendererContainer } from "./do";
 import { sendFcmPush } from "./fcm";
+import { stuckRenderCutoff } from "./reaper-policy";
 
 const POLL_INTERVAL_MS = 3000;
 const MAX_WAIT_MS = 15 * 60 * 1000; // 15 min ceiling per job
@@ -227,11 +228,9 @@ async function onRenderSuccess(
  * Cron reaper: fail-and-refund render jobs stuck in queued/rendering for
  * longer than STUCK_AFTER_MS (container crash, lost message, etc.).
  */
-const STUCK_AFTER_MS = 30 * 60 * 1000;
-
 export async function reapStuckJobs(env: Env): Promise<void> {
 	const db = getDb(env.DB);
-	const cutoff = Date.now() - STUCK_AFTER_MS;
+	const cutoff = stuckRenderCutoff(Date.now());
 	const stuck = await db.query.renderJobs.findMany({
 		where: (jobs, { and, inArray, lt }) => and(inArray(jobs.status, ["queued", "rendering"]), lt(jobs.updatedAt, cutoff)),
 		limit: 25,

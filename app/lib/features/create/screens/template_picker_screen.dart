@@ -140,7 +140,7 @@ class _TemplateTile extends StatelessWidget {
                   ? CachedNetworkImage(
                       imageUrl: template.thumbnailUrl!,
                       fit: BoxFit.cover,
-                      errorWidget: (_, __, ___) => _placeholder(context),
+                      errorWidget: (_, _, _) => _placeholder(context),
                     )
                   : _placeholder(context),
             ),

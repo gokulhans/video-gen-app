@@ -14,9 +14,9 @@ if (!["production", "staging"].includes(environment)) {
 
 const root = fileURLToPath(new URL("..", import.meta.url));
 const workers = [
-  { name: "api", config: "api/apps/api/wrangler.jsonc", required: ["BETTER_AUTH_SECRET", "MEDIA_INGEST_SIGNING_SECRET", "DELETION_TOMBSTONE_SECRET"], optional: ["R2_ACCOUNT_ID", "R2_ACCESS_KEY_ID", "R2_SECRET_ACCESS_KEY"] },
-  { name: "pipeline", config: "api/apps/pipeline/wrangler.jsonc", required: ["OPENAI_API_KEY", "GEMINI_API_KEY", "REPLICATE_API_TOKEN", "MEDIA_INGEST_SIGNING_SECRET"] },
-  { name: "render", config: "api/apps/render/wrangler.jsonc", required: ["R2_ACCOUNT_ID", "R2_ACCESS_KEY_ID", "R2_SECRET_ACCESS_KEY"] },
+  { name: "api", config: "api/apps/api/wrangler.jsonc", required: ["BETTER_AUTH_SECRET", "MEDIA_INGEST_SIGNING_SECRET", "DELETION_TOMBSTONE_SECRET", "R2_ACCOUNT_ID", "R2_ACCESS_KEY_ID", "R2_SECRET_ACCESS_KEY", "GOOGLE_CLIENT_ID", "GOOGLE_CLIENT_SECRET", "GOOGLE_PLAY_SERVICE_ACCOUNT_JSON", "GOOGLE_PLAY_PACKAGE_NAME"], checkMigrations: true },
+  { name: "pipeline", config: "api/apps/pipeline/wrangler.jsonc", required: ["OPENAI_API_KEY", "GEMINI_API_KEY", "REPLICATE_API_TOKEN", "MEDIA_INGEST_SIGNING_SECRET", "FCM_SERVICE_ACCOUNT_JSON"] },
+  { name: "render", config: "api/apps/render/wrangler.jsonc", required: ["R2_ACCOUNT_ID", "R2_ACCESS_KEY_ID", "R2_SECRET_ACCESS_KEY", "FCM_SERVICE_ACCOUNT_JSON"] },
   { name: "admin", config: "api/apps/admin/wrangler.jsonc", required: [] },
 ];
 
@@ -39,11 +39,15 @@ for (const worker of workers) {
   }
 
   const workerDirectory = path.dirname(configPath);
+  const accountId = config.match(/"account_id"\s*:\s*"([^"]+)"/)?.[1];
+  const commandEnv = accountId
+    ? { ...process.env, CLOUDFLARE_ACCOUNT_ID: accountId }
+    : process.env;
   const args = ["wrangler", "secret", "list", "--config", "wrangler.jsonc"];
   if (environment === "staging") args.push("--env", "staging");
   const result = process.platform === "win32"
-    ? spawnSync(process.env.ComSpec ?? "cmd.exe", ["/d", "/s", "/c", `npx.cmd ${args.join(" ")}`], { cwd: workerDirectory, encoding: "utf8" })
-    : spawnSync("npx", args, { cwd: workerDirectory, encoding: "utf8" });
+    ? spawnSync(process.env.ComSpec ?? "cmd.exe", ["/d", "/s", "/c", `npx.cmd ${args.join(" ")}`], { cwd: workerDirectory, encoding: "utf8", env: commandEnv })
+    : spawnSync("npx", args, { cwd: workerDirectory, encoding: "utf8", env: commandEnv });
   if (result.status !== 0) {
     failures.push(`${worker.name}: Worker is not deployed or secret list failed`);
     continue;
@@ -58,8 +62,35 @@ for (const worker of workers) {
   for (const secret of worker.required) {
     if (!names.includes(secret)) failures.push(`${worker.name}: missing secret ${secret}`);
   }
-  for (const secret of worker.optional ?? []) {
-    if (!names.includes(secret)) warnings.push(`${worker.name}: optional secret ${secret} is not configured (direct S3 upload/download disabled)`);
+  if (worker.checkMigrations) {
+    const databaseName = block.match(/"database_name"\s*:\s*"([^"]+)"/)?.[1];
+    if (!databaseName) {
+      failures.push(`${worker.name}: could not determine ${environment} D1 database name`);
+    } else {
+      const migrationArgs = ["wrangler", "d1", "migrations", "list", databaseName, "--remote", "--config", "wrangler.jsonc"];
+      if (environment === "staging") migrationArgs.push("--env", "staging");
+      const migrationResult = process.platform === "win32"
+        ? spawnSync(process.env.ComSpec ?? "cmd.exe", ["/d", "/s", "/c", `npx.cmd ${migrationArgs.join(" ")}`], { cwd: workerDirectory, encoding: "utf8", env: commandEnv })
+        : spawnSync("npx", migrationArgs, { cwd: workerDirectory, encoding: "utf8", env: commandEnv });
+      if (migrationResult.status !== 0) {
+        failures.push(`${worker.name}: remote D1 migration check failed`);
+      } else {
+        const pending = migrationResult.stdout.match(/\b\d{4}_[\w-]+\.sql\b/g) ?? [];
+        if (pending.length) failures.push(`${worker.name}: pending remote D1 migrations: ${[...new Set(pending)].join(", ")}`);
+      }
+    }
+  }
+}
+
+const appIdentityFiles = [
+  "app/android/app/build.gradle.kts",
+  "app/ios/Runner.xcodeproj/project.pbxproj",
+  "app/lib/firebase_options.dart",
+];
+for (const relativePath of appIdentityFiles) {
+  const contents = readFileSync(path.join(root, relativePath), "utf8");
+  if (/com\.example(?:\.|\b)/.test(contents)) {
+    failures.push(`app: template application identifier remains in ${relativePath}`);
   }
 }
 

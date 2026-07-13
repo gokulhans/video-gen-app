@@ -46,8 +46,7 @@ class TokenRepository {
   }
 
   /// Sends a Google Play Billing purchase token/receipt for server-side
-  /// verification. See lib/features/tokens/screens/purchase_screen.dart for
-  /// the in_app_purchase wiring (TODO: real product ids + billing flow).
+  /// verification. Product ids must match the server catalog and Play Console.
   Future<TokenBalance> verifyPurchase({
     required String productId,
     required String purchaseToken,

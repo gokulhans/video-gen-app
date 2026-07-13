@@ -330,7 +330,7 @@ class _PrivacySettingsState extends ConsumerState<_PrivacySettings> {
           .requestExport(_exportKey!);
       _exportKey = null;
       ref.invalidate(exportRequestsProvider);
-      if (context.mounted)
+      if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
@@ -338,11 +338,13 @@ class _PrivacySettingsState extends ConsumerState<_PrivacySettings> {
             ),
           ),
         );
+      }
     } catch (error) {
-      if (context.mounted)
+      if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Export request failed: $error')),
         );
+      }
     } finally {
       if (mounted) setState(() => _exporting = false);
     }
@@ -379,17 +381,19 @@ class _PrivacySettingsState extends ConsumerState<_PrivacySettings> {
             .requestDeletion(_deletionKey!);
         _deletionKey = null;
         ref.invalidate(deletionRequestsProvider);
-        if (context.mounted)
+        if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text('Request saved. Re-authentication is required.'),
             ),
           );
+        }
       } catch (error) {
-        if (context.mounted)
+        if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text('Deletion request failed: $error')),
           );
+        }
       } finally {
         if (mounted) setState(() => _deleting = false);
       }
@@ -449,10 +453,11 @@ class _PrivacySettingsState extends ConsumerState<_PrivacySettings> {
       await ref.read(accountSettingsRepositoryProvider).confirmDeletion(id);
       ref.invalidate(deletionRequestsProvider);
     } catch (error) {
-      if (context.mounted)
+      if (context.mounted) {
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(SnackBar(content: Text('Confirmation failed: $error')));
+      }
     }
   }
 
@@ -461,10 +466,11 @@ class _PrivacySettingsState extends ConsumerState<_PrivacySettings> {
       await ref.read(accountSettingsRepositoryProvider).cancelDeletion(id);
       ref.invalidate(deletionRequestsProvider);
     } catch (error) {
-      if (context.mounted)
+      if (context.mounted) {
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(SnackBar(content: Text('Cancellation failed: $error')));
+      }
     }
   }
 }

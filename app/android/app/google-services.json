@@ -9,7 +9,7 @@
       "client_info": {
         "mobilesdk_app_id": "1:729954962607:android:915735a37e738a409f185a",
         "android_client_info": {
-          "package_name": "com.example.app"
+          "package_name": "com.aivideogen.app"
         }
       },
       "oauth_client": [
@@ -34,7 +34,7 @@
               "client_id": "729954962607-gn0dggmm785hcb2eq181l9ju9grn792n.apps.googleusercontent.com",
               "client_type": 2,
               "ios_info": {
-                "bundle_id": "com.example.app"
+                "bundle_id": "com.aivideogen.app"
               }
             }
           ]

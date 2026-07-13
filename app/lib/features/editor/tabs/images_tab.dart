@@ -199,7 +199,7 @@ class _SceneImageCardState extends ConsumerState<_SceneImageCard> {
                   CachedNetworkImage(
                     imageUrl: scene.imageUrl!,
                     fit: BoxFit.cover,
-                    errorWidget: (_, __, ___) => _placeholder(context),
+                    errorWidget: (_, _, _) => _placeholder(context),
                   )
                 else
                   _placeholder(context),

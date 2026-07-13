@@ -44,7 +44,7 @@ class TokenBalanceScreen extends ConsumerWidget {
                         style: Theme.of(context).textTheme.displaySmall,
                       ),
                       loading: () => const CircularProgressIndicator(),
-                      error: (_, __) => const Text('--'),
+                      error: (_, _) => const Text('--'),
                     ),
                     const SizedBox(height: 16),
                     FilledButton.icon(

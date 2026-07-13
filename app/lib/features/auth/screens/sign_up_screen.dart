@@ -102,8 +102,9 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                     prefixIcon: Icon(Icons.email_outlined),
                   ),
                   validator: (value) {
-                    if (value == null || !value.contains('@'))
+                    if (value == null || !value.contains('@')) {
                       return 'Enter a valid email';
+                    }
                     return null;
                   },
                 ),
@@ -125,8 +126,9 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                     ),
                   ),
                   validator: (value) {
-                    if (value == null || value.length < 8)
+                    if (value == null || value.length < 8) {
                       return 'Minimum 8 characters';
+                    }
                     return null;
                   },
                 ),

@@ -66,18 +66,24 @@ class _RenderOptionsScreenState extends ConsumerState<RenderOptionsScreen> {
             style: Theme.of(context).textTheme.titleMedium,
           ),
           const SizedBox(height: 12),
-          _ResolutionTile(
-            resolution: RenderResolution.p720,
-            selected: _resolution == RenderResolution.p720,
-            onSelected: () =>
-                setState(() => _resolution = RenderResolution.p720),
-          ),
-          const SizedBox(height: 12),
-          _ResolutionTile(
-            resolution: RenderResolution.p1080,
-            selected: _resolution == RenderResolution.p1080,
-            onSelected: () =>
-                setState(() => _resolution = RenderResolution.p1080),
+          RadioGroup<RenderResolution>(
+            groupValue: _resolution,
+            onChanged: (value) {
+              if (value != null) setState(() => _resolution = value);
+            },
+            child: Column(
+              children: [
+                _ResolutionTile(
+                  resolution: RenderResolution.p720,
+                  selected: _resolution == RenderResolution.p720,
+                ),
+                const SizedBox(height: 12),
+                _ResolutionTile(
+                  resolution: RenderResolution.p1080,
+                  selected: _resolution == RenderResolution.p1080,
+                ),
+              ],
+            ),
           ),
           const SizedBox(height: 32),
           FilledButton.icon(
@@ -101,15 +107,10 @@ class _RenderOptionsScreenState extends ConsumerState<RenderOptionsScreen> {
 }
 
 class _ResolutionTile extends ConsumerWidget {
-  const _ResolutionTile({
-    required this.resolution,
-    required this.selected,
-    required this.onSelected,
-  });
+  const _ResolutionTile({required this.resolution, required this.selected});
 
   final RenderResolution resolution;
   final bool selected;
-  final VoidCallback onSelected;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -118,13 +119,11 @@ class _ResolutionTile extends ConsumerWidget {
       color: selected ? Theme.of(context).colorScheme.primaryContainer : null,
       child: RadioListTile<RenderResolution>(
         value: resolution,
-        groupValue: selected ? resolution : null,
-        onChanged: (_) => onSelected(),
         title: Text(resolution.label),
         subtitle: costAsync.when(
           data: (estimate) => Text('${estimate.total} tokens'),
           loading: () => const Text('Estimating...'),
-          error: (_, __) => const Text('Cost unavailable'),
+          error: (_, _) => const Text('Cost unavailable'),
         ),
       ),
     );

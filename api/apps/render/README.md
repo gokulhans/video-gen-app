@@ -111,7 +111,7 @@ app's `wrangler.jsonc`).
   worker.
 - TODO: tune `POLL_INTERVAL_MS` / `MAX_WAIT_MS` in `src/consumer.ts` against
   real benchmark numbers from the Phase 0 render spike.
-- TODO: stuck-job reaper (cron trigger sweeping `render_jobs` stuck in
-  `rendering` past a TTL) is not part of this app's queue consumer; wire it
-  up wherever Cron Triggers are centralized (plan mentions this under
-  Phase 3, likely alongside `apps/admin` or a small maintenance worker).
+- A cron-triggered stuck-job reaper runs every ten minutes. It claims jobs
+  left in `queued` or `rendering` for more than thirty minutes, marks them
+  failed, refunds the recorded charge exactly once, updates the progress DO,
+  and emits the normal failure notification.

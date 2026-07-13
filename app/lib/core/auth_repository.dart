@@ -7,6 +7,13 @@ import 'api_client.dart';
 import 'constants.dart';
 import 'models/user.dart';
 
+/// Better Auth expects native-provider ID tokens as an object, not a raw
+/// string. Keeping the payload builder separate makes this contract testable.
+Map<String, dynamic> googleIdTokenSignInBody(String idToken) => {
+  'provider': 'google',
+  'idToken': {'token': idToken},
+};
+
 /// Handles better-auth email+password and Google sign-in, and persists the
 /// resulting bearer token + minimal session info in secure storage.
 ///
@@ -91,7 +98,7 @@ class AuthRepository {
       }
       final response = await _authDio.post(
         '/sign-in/social',
-        data: {'provider': 'google', 'idToken': idToken},
+        data: googleIdTokenSignInBody(idToken),
       );
       return _persistSession(response);
     } on DioException catch (e) {

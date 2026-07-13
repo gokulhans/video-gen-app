@@ -10,5 +10,10 @@
     "typescript": "^5.7.0",
     "wrangler": "^4.0.0",
     "@cloudflare/workers-types": "^4.20260110.0"
+  },
+  "pnpm": {
+    "overrides": {
+      "esbuild@<=0.24.2": "0.25.0"
+    }
   }
 }

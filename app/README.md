@@ -59,9 +59,7 @@ flutter run \
 
 1. Create (or reuse) a Firebase project and add an Android app with package
    name matching `android/app/build.gradle.kts` → `applicationId`
-   (currently the Flutter-template default `com.example.app` — **rename
-   this** to your real package id, e.g. `com.aivideomaker.app`, before
-   release; see §6).
+   (`com.aivideogen.app`).
 2. Download `google-services.json` from the Firebase console and place it at
    `android/app/google-services.json`.
 3. Add the Google Services Gradle plugin (not added yet, since the JSON file
@@ -91,19 +89,11 @@ flutter run \
   be verified server-side (better-auth's Google provider uses
   `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET`, already in CONTRACTS.md).
 
-## 6. Renaming the Android package id (recommended before release)
+## 6. Application identifier
 
-The scaffolded `android/` folder still uses the Flutter template default
-`com.example.app` (`android/app/build.gradle.kts` namespace/applicationId,
-and `android/app/src/main/kotlin/com/example/app/MainActivity.kt`). Rename it
-with:
-
-```bash
-flutter pub run rename_app --bundleId com.aivideomaker.app
-# or manually: update namespace/applicationId in build.gradle.kts, move
-# MainActivity.kt to match the new package path, and update the `package`
-# declaration inside it.
-```
+The release identifier is `com.aivideogen.app` across Android, iOS, macOS,
+Linux, and the checked-in Firebase platform configuration. Keep the same
+identifier when creating store listings, signing profiles, and Firebase apps.
 
 This must match the package name registered in the Firebase console and the
 Play Console.
@@ -204,8 +194,7 @@ lib/
   real products + test with a licensed tester account before shipping.
 - **google-services.json / GoogleService-Info.plist**: not included (they're
   per-environment secrets) — add them per §4 before FCM will work.
-- **Android package id**: still `com.example.app`; rename before release
-  (§6).
+- **Application id**: `com.aivideogen.app` (§6).
 - App icons/splash screens are the Flutter defaults; swap via
   `flutter_launcher_icons` / `flutter_native_splash` if desired (not added
   as a dependency here to keep the dependency list matching the ask).

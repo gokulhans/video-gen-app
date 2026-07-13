@@ -58,7 +58,7 @@ class BrandTab extends ConsumerWidget {
                 );
               },
               loading: () => const Center(child: CircularProgressIndicator()),
-              error: (_, __) => const Text('Could not load brands'),
+              error: (_, _) => const Text('Could not load brands'),
             ),
             const SizedBox(height: 24),
             Text(

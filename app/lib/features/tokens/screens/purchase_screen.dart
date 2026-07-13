@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:in_app_purchase/in_app_purchase.dart';
@@ -7,12 +8,10 @@ import 'package:in_app_purchase/in_app_purchase.dart';
 import '../../../core/api_client.dart';
 import '../../../core/repositories/token_repository.dart';
 
-/// Token purchase screen. Google Play Billing wiring is sketched with
-/// `in_app_purchase`; the actual purchase flow is a TODO pending real
-/// product ids configured in the Play Console and matching entries in the
-/// `token_costs` / purchase catalog on the server.
+/// Token purchase screen backed by Google Play Billing. Product ids must be
+/// configured in Play Console and match the server-owned purchase catalog.
 ///
-/// Flow once wired up:
+/// Purchase flow:
 ///  1. Query [InAppPurchase.instance.queryProductDetails] with [_productIds].
 ///  2. Kick off `buyConsumable` for the selected package.
 ///  3. Listen on `InAppPurchase.instance.purchaseStream`; on a verified
@@ -50,13 +49,16 @@ class _PurchaseScreenState extends ConsumerState<PurchaseScreen> {
   }
 
   Future<void> _init() async {
-    _available = await _iap.isAvailable();
-    if (!mounted) return;
-    setState(() {});
     _subscription = _iap.purchaseStream.listen(
       _onPurchaseUpdate,
       onError: (_) {},
     );
+    // The API currently validates Google Play purchase tokens only. Do not
+    // offer a store flow on iOS/web that the server cannot verify.
+    final supportsServerVerification =
+        !kIsWeb && defaultTargetPlatform == TargetPlatform.android;
+    _available = supportsServerVerification && await _iap.isAvailable();
+    if (mounted) setState(() {});
   }
 
   Future<void> _onPurchaseUpdate(List<PurchaseDetails> purchases) async {
@@ -70,7 +72,9 @@ class _PurchaseScreenState extends ConsumerState<PurchaseScreen> {
                 productId: purchase.productID,
                 purchaseToken: purchase.verificationData.serverVerificationData,
               );
-          await _iap.completePurchase(purchase);
+          if (purchase.pendingCompletePurchase) {
+            await _iap.completePurchase(purchase);
+          }
           if (mounted) {
             setState(() {
               _pendingProductId = null;
@@ -119,6 +123,13 @@ class _PurchaseScreenState extends ConsumerState<PurchaseScreen> {
             SnackBar(content: Text('Purchase error: ${purchase.error}')),
           );
         }
+      } else if (purchase.status == PurchaseStatus.canceled) {
+        if (mounted) {
+          setState(() {
+            _pendingProductId = null;
+            _busy = false;
+          });
+        }
       }
     }
     if (mounted && _pendingProductId == null) setState(() => _busy = false);
@@ -142,7 +153,9 @@ class _PurchaseScreenState extends ConsumerState<PurchaseScreen> {
     try {
       final response = await _iap.queryProductDetails({productId});
       if (response.productDetails.isEmpty) {
-        throw Exception('Product not found in store listing');
+        final detail =
+            response.error?.message ?? 'Product not found in store listing';
+        throw Exception(detail);
       }
       _products[productId] = response.productDetails.first;
       final purchaseParam = PurchaseParam(

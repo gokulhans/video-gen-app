@@ -7,7 +7,7 @@ class NotificationRepository {
   final ApiClient _api;
   Future<NotificationPage> list({String? cursor, int limit = 30}) => _api.get(
     '/notifications',
-    query: {'limit': limit, if (cursor != null) 'cursor': cursor},
+    query: {'limit': limit, 'cursor': ?cursor},
     parser: (json) => NotificationPage.fromJson(json as Map<String, dynamic>),
   );
   Future<int> unreadCount() => _api.get(

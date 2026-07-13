@@ -66,7 +66,7 @@ class _VoicePickerState extends State<VoicePicker> {
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         itemCount: widget.voices.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 10),
+        separatorBuilder: (_, _) => const SizedBox(width: 10),
         itemBuilder: (context, index) {
           final voice = widget.voices[index];
           final selected = voice.id == widget.selectedId;

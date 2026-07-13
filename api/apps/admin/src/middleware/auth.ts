@@ -4,6 +4,7 @@ import { getDb, schema } from "@app/db";
 import { err } from "@app/shared";
 import type { AppBindings } from "../types.js";
 import { parsePermissions } from "../lib/permissions.js";
+import { parseStoredAdminSession, sessionKeyFromBearerToken, type StoredAuthSession } from "../lib/admin-session.js";
 
 /** Validate Better Auth through the API Worker, then resolve admin/RBAC in D1. */
 export async function requireAdmin(c: Context<AppBindings>, next: Next) {
@@ -11,20 +12,23 @@ export async function requireAdmin(c: Context<AppBindings>, next: Next) {
 	const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7).trim() : "";
 	if (!token) return c.json(err("UNAUTHORIZED", "Missing bearer token"), 401);
 
-	let authBody: any;
+	let authBody: StoredAuthSession;
 	try {
-		const response = await fetch(`${c.env.AUTH_API_URL}/get-session`, {
-			headers: { Authorization: `Bearer ${token}` },
-		});
-		if (!response.ok) return c.json(err("UNAUTHORIZED", "Invalid or expired session"), 401);
-		authBody = await response.json();
+		// Better Auth's bearer response is a signed cookie value. Its first
+		// segment is the raw session token used as the shared KV key.
+		const sessionToken = sessionKeyFromBearerToken(token);
+		const sessionRecord = await c.env.KV.get(sessionToken);
+		if (!sessionRecord) return c.json(err("UNAUTHORIZED", "Invalid or expired session"), 401);
+		const parsed = parseStoredAdminSession(sessionRecord);
+		if (!parsed) return c.json(err("UNAUTHORIZED", "Invalid or expired session"), 401);
+		authBody = parsed;
 	} catch {
-		return c.json(err("UNAUTHORIZED", "Unable to validate session"), 401);
+		return c.json(err("UNAUTHORIZED", "Invalid or expired session"), 401);
 	}
 
-	const authSession = authBody?.session ?? authBody?.data?.session;
-	const authUser = authBody?.user ?? authBody?.data?.user;
-	if (!authSession || !authUser?.id) return c.json(err("UNAUTHORIZED", "Invalid or expired session"), 401);
+	const authSession = authBody?.session;
+	const authUser = authBody?.user;
+	if (!authSession || !authUser.id) return c.json(err("UNAUTHORIZED", "Invalid or expired session"), 401);
 
 	const db = getDb(c.env.DB);
 	const rows = await db
@@ -33,7 +37,7 @@ export async function requireAdmin(c: Context<AppBindings>, next: Next) {
 		.where(eq(schema.user.id, authUser.id))
 		.limit(1);
 	const row = rows[0];
-	if (!row) return c.json(err("UNAUTHORIZED", "User not found"), 401);
+	if (!row) return c.json(err("UNAUTHORIZED", "Session user not found in admin database"), 401);
 
 	const roleRows = await db
 		.select({ permissions: schema.adminRoles.permissions })

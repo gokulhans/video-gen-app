@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 import { brandVersionCommitSucceeded, cleanupAfterBrandCommit, legacyOwnedLogoKey,decodeNotificationCursor,encodeNotificationCursor,notificationDeepLink } from "../src/lib/brand-notification.ts";
+import { isFreshReauthenticationSession } from "../src/lib/account-lifecycle.ts";
 
 test("brand logo compatibility accepts only the owning tenant namespace", () => {
 	assert.equal(legacyOwnedLogoKey("https://api.example/assets/users/user_1/brands/logos/a.png","user_1"),"users/user_1/brands/logos/a.png");
@@ -41,4 +42,13 @@ test("migration enforces tenant-scoped idempotency keys", async () => {
 	assert.match(sql,/brand_mutations_tenant_key_unique[^;]+\(`user_id`,`idempotency_key`\)/);
 	assert.match(sql,/data_export_requests_tenant_idempotency_unique[^;]+\(`user_id`,`idempotency_key`\)/);
 	assert.match(sql,/account_deletion_requests_tenant_idempotency_unique[^;]+\(`user_id`,`idempotency_key`\)/);
+});
+
+test("account deletion accepts only a fresh post-request Better Auth session", () => {
+	const requestedAt = 1_000_000;
+	assert.equal(isFreshReauthenticationSession(requestedAt + 1, requestedAt, requestedAt + 60_000), true);
+	assert.equal(isFreshReauthenticationSession(requestedAt, requestedAt, requestedAt + 60_000), false);
+	assert.equal(isFreshReauthenticationSession(requestedAt - 1, requestedAt, requestedAt + 60_000), false);
+	assert.equal(isFreshReauthenticationSession(requestedAt + 1, requestedAt, requestedAt + 15 * 60_000 + 2), false);
+	assert.equal(isFreshReauthenticationSession(requestedAt + 60_001, requestedAt, requestedAt + 60_000), false);
 });

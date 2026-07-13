@@ -58,7 +58,7 @@ export interface Env {
 export type Variables = {
 	userId: string;
 	requestId: string;
-	session: { id: string; userId: string; token: string };
+	session: { id: string; userId: string; token: string; createdAt: number };
 };
 
 export type AppEnv = { Bindings: Env; Variables: Variables };

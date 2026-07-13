@@ -22,6 +22,7 @@ export async function requireAuth(c: Context<AppEnv>, next: Next) {
 		id: session.session.id,
 		userId: session.user.id,
 		token: session.session.token,
+		createdAt: new Date(session.session.createdAt).getTime(),
 	});
 	await next();
 }

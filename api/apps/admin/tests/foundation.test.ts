@@ -5,6 +5,7 @@ import { publishCommitSucceeded, validatePublishState } from "../src/lib/publish
 import { sanitizeAuditValue } from "../src/lib/audit-sanitize.ts";
 import { P_VIDEO_PINNED_DIGEST, P_VIDEO_TEST_CREDITS, P_VIDEO_TEST_PRICE_KEY, validatePVideoPublishState } from "../src/lib/p-video-rules.ts";
 import { readFileSync } from "node:fs";
+import { parseStoredAdminSession, sessionKeyFromBearerToken } from "../src/lib/admin-session.ts";
 
 test("role permissions are resolved without trusting malformed values", () => {
 	assert.deepEqual(parsePermissions(["catalog.read", 12, "catalog.read", "pricing.write"]), ["catalog.read", "pricing.write"]);
@@ -13,6 +14,17 @@ test("role permissions are resolved without trusting malformed values", () => {
 	assert.equal(can({ isSuperAdmin: true, permissions: [] }, "catalog.publish"), true);
 	assert.equal(can({ isSuperAdmin: false, permissions: ["characters.moderate"] }, "characters.moderate"), true);
 	assert.equal(can({ isSuperAdmin: false, permissions: ["characters.write"] }, "characters.moderate"), false);
+});
+
+test("admin bearer sessions use Better Auth's KV record and reject expired data", () => {
+	assert.equal(sessionKeyFromBearerToken("raw-token.signature"), "raw-token");
+	assert.equal(sessionKeyFromBearerToken("raw-token"), "raw-token");
+	assert.deepEqual(
+		parseStoredAdminSession(JSON.stringify({ session: { expiresAt: 2_000 }, user: { id: "admin-1" } }), 1_000),
+		{ session: { expiresAt: 2_000 }, user: { id: "admin-1" } },
+	);
+	assert.equal(parseStoredAdminSession(JSON.stringify({ session: { expiresAt: 1_000 }, user: { id: "admin-1" } }), 1_000), null);
+	assert.equal(parseStoredAdminSession("not-json", 1_000), null);
 });
 
 test("publish rules reject mutable or incomplete bindings", () => {

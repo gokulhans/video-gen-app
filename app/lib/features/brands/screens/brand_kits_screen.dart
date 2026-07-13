@@ -179,7 +179,7 @@ class _BrandKitsScreenState extends ConsumerState<BrandKitsScreen> {
                         withData: true,
                       );
                       final file = result?.files.singleOrNull;
-                      if (file?.bytes != null)
+                      if (file?.bytes != null) {
                         setDialogState(() {
                           logoBytes = file!.bytes;
                           contentType = file.extension?.toLowerCase() == 'png'
@@ -188,6 +188,7 @@ class _BrandKitsScreenState extends ConsumerState<BrandKitsScreen> {
                               ? 'image/webp'
                               : 'image/jpeg';
                         });
+                      }
                     },
                     icon: const Icon(Icons.image_outlined),
                     label: Text(
@@ -218,7 +219,7 @@ class _BrandKitsScreenState extends ConsumerState<BrandKitsScreen> {
         !hex.hasMatch(secondary.text) ||
         (website.text.trim().isNotEmpty &&
             Uri.tryParse(website.text.trim())?.hasAbsolutePath != true)) {
-      if (context.mounted)
+      if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text(
@@ -226,6 +227,7 @@ class _BrandKitsScreenState extends ConsumerState<BrandKitsScreen> {
             ),
           ),
         );
+      }
       return;
     }
     final value = Brand(
@@ -278,7 +280,7 @@ class _BrandKitsScreenState extends ConsumerState<BrandKitsScreen> {
     } catch (error) {
       // The mutation may have committed before a response was lost. Its stable
       // idempotency key and the server cleanup outbox own reconciliation.
-      if (context.mounted)
+      if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Brand kit save was not confirmed: $error'),
@@ -287,6 +289,7 @@ class _BrandKitsScreenState extends ConsumerState<BrandKitsScreen> {
                 : SnackBarAction(label: 'Retry safely', onPressed: _retrySave),
           ),
         );
+      }
       return;
     } finally {
       if (mounted) setState(() => _saving = false);
@@ -330,8 +333,9 @@ class _BrandCard extends StatelessWidget {
   final VoidCallback onEdit;
   final VoidCallback onArchive;
   Color _parse(String? value, Color fallback) {
-    if (value == null || !RegExp(r'^#[0-9A-Fa-f]{6}$').hasMatch(value))
+    if (value == null || !RegExp(r'^#[0-9A-Fa-f]{6}$').hasMatch(value)) {
       return fallback;
+    }
     return Color(int.parse(value.substring(1), radix: 16) + 0xFF000000);
   }
 
@@ -352,7 +356,7 @@ class _BrandCard extends StatelessWidget {
                   brand.logoUrl!,
                   height: 52,
                   fit: BoxFit.contain,
-                  errorBuilder: (_, __, ___) => const SizedBox(
+                  errorBuilder: (_, _, _) => const SizedBox(
                     height: 52,
                     child: Center(child: Icon(Icons.broken_image_outlined)),
                   ),
