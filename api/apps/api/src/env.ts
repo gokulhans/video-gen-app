@@ -48,9 +48,11 @@ export interface Env {
 	// Env vars (CONTRACTS.md)
 	AI_GATEWAY_BASE_URL: string;
 	APP_BASE_URL: string;
+	PLAYBACK_PROVIDER?: string;
 	ALLOWED_ORIGINS?: string;
 	/** Unique code shown in the Stream dashboard, without `customer-`. */
-	STREAM_CUSTOMER_CODE: string;
+	/** Optional legacy Stream playback code. R2 is the default provider. */
+	STREAM_CUSTOMER_CODE?: string;
 }
 
 export type Variables = {

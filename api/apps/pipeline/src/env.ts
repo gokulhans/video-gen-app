@@ -17,6 +17,8 @@ export interface Env {
 
   AI_GATEWAY_BASE_URL: string;
   APP_BASE_URL: string;
+  /** `r2` is the economical default; `stream` is an optional delivery adapter. */
+  PLAYBACK_PROVIDER?: string;
   EMAIL_FROM_ADDRESS: string;
   EMAIL_FROM_NAME: string;
 

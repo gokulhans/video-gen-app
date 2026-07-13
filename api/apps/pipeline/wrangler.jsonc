@@ -13,6 +13,7 @@
   "vars": {
     "AI_GATEWAY_BASE_URL": "https://gateway.ai.cloudflare.com/v1/58f07fb13c26e83dd6109d957083478d/ai-video",
     "APP_BASE_URL": "https://api.gokulhansv.workers.dev"
+    ,"PLAYBACK_PROVIDER": "r2"
     ,"EMAIL_FROM_ADDRESS": "notifications@mail.zellyo.in"
     ,"EMAIL_FROM_NAME": "Zellyo"
   },
@@ -87,6 +88,7 @@
       "vars": {
         "AI_GATEWAY_BASE_URL": "https://gateway.ai.cloudflare.com/v1/58f07fb13c26e83dd6109d957083478d/ai-video-staging",
         "APP_BASE_URL": "https://api-staging.gokulhansv.workers.dev",
+        "PLAYBACK_PROVIDER": "r2",
         "EMAIL_FROM_ADDRESS": "notifications@mail.zellyo.in",
         "EMAIL_FROM_NAME": "Zellyo"
       },

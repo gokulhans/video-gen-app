@@ -105,9 +105,9 @@
 	"vars": {
 		"AI_GATEWAY_BASE_URL": "https://gateway.ai.cloudflare.com/v1/58f07fb13c26e83dd6109d957083478d/ai-video",
 		"APP_BASE_URL": "https://api.gokulhansv.workers.dev",
+		"PLAYBACK_PROVIDER": "r2",
 		"ALLOWED_ORIGINS": "https://aividgen-app.gokulhansv.workers.dev,https://admin.gokulhansv.workers.dev",
 		// Set this to the unique code from the Cloudflare Stream dashboard.
-		"STREAM_CUSTOMER_CODE": "replace-with-stream-customer-code",
 	"PLAY_TOKEN_PACKS_JSON": "{\"tokens_500\":500,\"tokens_1500\":1500,\"tokens_5000\":5000}"
 	},
 	"env": {
@@ -116,8 +116,8 @@
 			"vars": {
 				"AI_GATEWAY_BASE_URL": "https://gateway.ai.cloudflare.com/v1/58f07fb13c26e83dd6109d957083478d/ai-video-staging",
 				"APP_BASE_URL": "https://api-staging.gokulhansv.workers.dev",
+				"PLAYBACK_PROVIDER": "r2",
 				"ALLOWED_ORIGINS": "https://zellyo-app-staging.gokulhansv.workers.dev",
-				"STREAM_CUSTOMER_CODE": "replace-with-staging-stream-customer-code",
 				"PLAY_TOKEN_PACKS_JSON": "{\"tokens_500\":500,\"tokens_1500\":1500,\"tokens_5000\":5000}"
 			},
 			"d1_databases": [{ "binding": "DB", "database_name": "ai-video-db-staging", "database_id": "4e5232f4-2277-4e1f-803c-daf9ec149bd0", "migrations_dir": "../../packages/db/migrations" }],

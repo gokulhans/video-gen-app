@@ -61,7 +61,7 @@ app.use(
 		},
 		credentials: true,
 		allowHeaders: ["Content-Type", "Authorization", "Idempotency-Key"],
-		exposeHeaders: ["x-request-id"],
+		exposeHeaders: ["x-request-id", "set-auth-token"],
 	}),
 );
 

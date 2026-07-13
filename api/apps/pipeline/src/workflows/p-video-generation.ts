@@ -649,39 +649,46 @@ export class PVideoGenerationWorkflow extends WorkflowEntrypoint<Env, InternalJo
       await step.do("transition-to-publishing", { retries: STEP_RETRIES, timeout: "1 minute" }, () =>
         transitionJob(this.env.DB, context.jobId, "post_processing", "publishing", 95));
 
-      const streamAsset = await step.do(
-        "reserve-stream-playback-asset",
-        { retries: STEP_RETRIES, timeout: "1 minute" },
-        () => ensureStreamAsset(this.env, context, attempt.attemptId),
-      );
-      let publication = isPersistedStreamUid(streamAsset.objectKey, context.jobId)
-        ? await step.do(
-            "load-persisted-stream-video",
-            { retries: STEP_RETRIES, timeout: "1 minute" },
-            async () => publicationFromVideo(await this.env.STREAM.video(streamAsset.objectKey).details()),
-          )
-        : await step.do(
-            "upload-r2-master-to-stream",
-            { retries: STEP_RETRIES, timeout: "2 minutes", sensitive: "output" },
-            () => publishMasterToStream(this.env, context, assetKey, streamAsset.createdAt),
-          );
-      await step.do("persist-stream-video-uid", { retries: STEP_RETRIES, timeout: "1 minute" }, () =>
-        persistStreamUid(this.env, context, publication));
-
-      for (let poll = 0; streamLifecycleState(publication.readyToStream, publication.statusState) === "processing"; poll += 1) {
-        if (poll >= 60) throw new Error("Stream video processing timed out");
-        await step.sleep(`wait-for-stream-video-${poll}`, "10 seconds");
-        publication = await step.do(
-          `check-stream-video-${poll}`,
+      if ((this.env.PLAYBACK_PROVIDER ?? "r2") === "stream") {
+        const streamAsset = await step.do(
+          "reserve-stream-playback-asset",
           { retries: STEP_RETRIES, timeout: "1 minute" },
-          async () => publicationFromVideo(await this.env.STREAM.video(publication.uid).details()),
+          () => ensureStreamAsset(this.env, context, attempt.attemptId),
         );
+        let publication = isPersistedStreamUid(streamAsset.objectKey, context.jobId)
+          ? await step.do(
+              "load-persisted-stream-video",
+              { retries: STEP_RETRIES, timeout: "1 minute" },
+              async () => publicationFromVideo(await this.env.STREAM.video(streamAsset.objectKey).details()),
+            )
+          : await step.do(
+              "upload-r2-master-to-stream",
+              { retries: STEP_RETRIES, timeout: "2 minutes", sensitive: "output" },
+              () => publishMasterToStream(this.env, context, assetKey, streamAsset.createdAt),
+            );
+        await step.do("persist-stream-video-uid", { retries: STEP_RETRIES, timeout: "1 minute" }, () =>
+          persistStreamUid(this.env, context, publication));
+
+        for (let poll = 0; streamLifecycleState(publication.readyToStream, publication.statusState) === "processing"; poll += 1) {
+          if (poll >= 60) throw new Error("Stream video processing timed out");
+          await step.sleep(`wait-for-stream-video-${poll}`, "10 seconds");
+          publication = await step.do(
+            `check-stream-video-${poll}`,
+            { retries: STEP_RETRIES, timeout: "1 minute" },
+            async () => publicationFromVideo(await this.env.STREAM.video(publication.uid).details()),
+          );
+        }
+        if (streamLifecycleState(publication.readyToStream, publication.statusState) === "failed") {
+          throw new NonRetryableError("Stream could not process the generated video", "StreamProcessingFailed");
+        }
+        await step.do("mark-stream-playback-ready", { retries: STEP_RETRIES, timeout: "1 minute" }, () =>
+          markStreamAssetReady(this.env, context, publication.uid));
+      } else {
+        await step.do("verify-r2-playback-master", { retries: STEP_RETRIES, timeout: "1 minute" }, async () => {
+          const object = await this.env.ASSETS_BUCKET.head(assetKey);
+          if (!object) throw new Error("R2 playback master disappeared before completion");
+        });
       }
-      if (streamLifecycleState(publication.readyToStream, publication.statusState) === "failed") {
-        throw new NonRetryableError("Stream could not process the generated video", "StreamProcessingFailed");
-      }
-      await step.do("mark-stream-playback-ready", { retries: STEP_RETRIES, timeout: "1 minute" }, () =>
-        markStreamAssetReady(this.env, context, publication.uid));
       await step.do("capture-reservation-and-complete", { retries: STEP_RETRIES, timeout: "1 minute" }, () =>
         captureAndComplete(this.env, context));
 

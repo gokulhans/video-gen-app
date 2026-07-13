@@ -121,6 +121,10 @@ jobs:
           flutter build apk --debug
           --dart-define=API_BASE_URL=https://staging.invalid/api/v1
           --dart-define=AUTH_BASE_URL=https://staging.invalid/api/auth
+      - name: Build Flutter web client
+        run: flutter build web --release
+      - name: Validate Cloudflare static staging Worker
+        run: pnpm --dir ../api exec wrangler deploy --config wrangler.staging.jsonc --dry-run
 
   security:
     name: Secrets and dependency audit

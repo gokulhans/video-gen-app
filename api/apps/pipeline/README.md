@@ -34,9 +34,8 @@ Set via `wrangler secret put <NAME>` (per environment):
 
 ## Vars
 
-Also set `MEDIA_INGEST_SIGNING_SECRET` to the same high-entropy value on the
-API Worker. It signs 15-minute, path-bound URLs used only for Stream to ingest
-private R2 generation masters.
+`MEDIA_INGEST_SIGNING_SECRET` is only needed when the optional Stream adapter
+is enabled; it signs 15-minute, path-bound URLs for private R2 master ingest.
 
 - `AI_GATEWAY_BASE_URL` — Cloudflare AI Gateway prefix, e.g.
   `https://gateway.ai.cloudflare.com/v1/<account_id>/<gateway_id>`. Provider
@@ -69,13 +68,11 @@ wrangler secret put MEDIA_INGEST_SIGNING_SECRET
 wrangler deploy
 ```
 
-Cloudflare Stream is configured through the native `STREAM` binding in
-`wrangler.jsonc`; it does not require a Stream API token. P-Video generations
-retain their durable MP4 master in R2, then create a separate signed-playback
-asset in Stream. The Workflow checkpoints the Stream UID before polling
-`readyToStream`, so encoding retries never re-upload a completed master.
-R2 masters remain private: Stream receives an expiring HMAC URL served by the
-API Worker, and the legacy public asset route rejects generation master keys.
+The default `PLAYBACK_PROVIDER=r2` keeps the generated MP4 master private in R2
+and returns a short-lived signed URL for playback. Stream remains an optional
+adapter through the native `STREAM` binding; when enabled, the Workflow
+checkpoints the Stream UID before polling `readyToStream`, so encoding retries
+never re-upload a completed master.
 
 Fill in `database_id` and the real `AI_GATEWAY_BASE_URL` in `wrangler.jsonc`
 before deploying (placeholders are marked `<...>`).

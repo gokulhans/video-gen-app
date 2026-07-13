@@ -18,8 +18,9 @@ resource set only; they are not a staging environment. Do not point a staging
 deployment at these IDs.
 
 Before production traffic is enabled, provision a separate resource set and
-Worker names for staging (including a separate Stream customer/library and AI
-Gateway). Keep the resulting IDs and secrets in protected GitHub
+Worker names for staging (including a separate AI Gateway). Stream is an
+optional playback adapter; the default R2 playback path does not require a
+Stream customer code. Keep the resulting IDs and secrets in protected GitHub
 `staging`/`production` environments or an approved secret manager; never add
 them to this repository. The complete isolation checklist is in
 [`docs/production-runbook.md`](docs/production-runbook.md).
@@ -27,8 +28,18 @@ them to this repository. The complete isolation checklist is in
 Staging resources are now provisioned in the same account and migrations/seed
 are applied to `ai-video-db-staging`; see the ignored local manifest
 `.staging-resources.local.json` and [`docs/staging-provisioning.md`](docs/staging-provisioning.md).
-Staging secrets and Stream/provider smoke approval are still intentionally
-required before deploying traffic.
+Staging provider secrets and smoke approval are still intentionally required
+before deploying traffic.
+
+Before any deployment, run the read-only release gate:
+
+```bash
+node scripts/check-release-readiness.mjs --env staging
+node scripts/check-release-readiness.mjs --env production
+```
+
+It checks for placeholder environment values, confirms that each Worker exists,
+and verifies the minimum required secret names without printing secret values.
 
 ---
 
@@ -44,11 +55,17 @@ a file instead. Secrets apply immediately — no redeploy needed.
 | Secret | Required for | Where to get it | Status |
 |---|---|---|---|
 | `BETTER_AUTH_SECRET` | all auth (session signing) | any random 32+ chars (`openssl rand -base64 32`) | ✅ set |
+| `MEDIA_INGEST_SIGNING_SECRET` | authenticated API → pipeline media handoff | one shared random value for API and pipeline | ✅ set |
+| `DELETION_TOMBSTONE_SECRET` | irreversible account-deletion tombstones | a separate random value | ✅ set |
 | `R2_ACCOUNT_ID` | presigned upload/download URLs | it's the account id: `58f07fb13c26e83dd6109d957083478d` | ⬜ |
 | `R2_ACCESS_KEY_ID` / `R2_SECRET_ACCESS_KEY` | presigned URLs | Dashboard → R2 → Manage API Tokens → Create API token → permission **Object Read & Write** on buckets `assets`, `renders`, `uploads`, `exports`. Shown once — copy both values | ⬜ |
 | `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | Google sign-in | console.cloud.google.com → APIs & Services → Credentials → Create OAuth client (type **Web application**; authorized redirect URI `https://api.gokulhansv.workers.dev/api/auth/callback/google`) | ⬜ optional at first |
 | `GOOGLE_PLAY_SERVICE_ACCOUNT_JSON` | token purchase verification | Play Console → Setup → API access → service account key JSON | ⬜ later, needs Play Console |
 | `GOOGLE_PLAY_PACKAGE_NAME` | same | your final Android applicationId | ⬜ later |
+
+`PLAYBACK_PROVIDER` is set to `r2` in production and staging. Stream can be
+enabled later by setting it to `stream` and supplying the corresponding
+customer code; never substitute the Cloudflare account ID.
 
 ```powershell
 cd api\apps\api

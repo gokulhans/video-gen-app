@@ -200,14 +200,14 @@ assets.get("/generation/:assetId", async (c) => {
 		.get();
 	if (!row) return Errors.notFound(c, "Generation asset not found");
 	if (row.status !== "ready") return Errors.conflict(c, "Generation asset is not ready");
-	if (row.storage === "stream") {
+	if (row.storage === "stream" && (c.env.PLAYBACK_PROVIDER ?? "r2") === "stream") {
 		const video = await c.env.STREAM.video(row.objectKey).details();
 		if (!streamVideoOwnedByGeneration(video, c.get("userId"), row.jobId)) {
 			return Errors.forbidden(c, "Stream video ownership does not match this generation");
 		}
 		if (!video.readyToStream) return Errors.conflict(c, "Stream playback is not ready");
 		const token = await c.env.STREAM.video(row.objectKey).generateToken();
-		const playback = streamPlaybackUrls(c.env.STREAM_CUSTOMER_CODE, token);
+		const playback = streamPlaybackUrls(c.env.STREAM_CUSTOMER_CODE ?? "", token);
 		if (!playback) return Errors.serviceUnavailable(c, "Stream playback is not configured");
 		const master = await db.select({
 			objectKey: schema.generationAssets.objectKey,
@@ -240,6 +240,36 @@ assets.get("/generation/:assetId", async (c) => {
 				sizeBytes: master.byteSize,
 				checksum: master.checksum,
 			},
+		});
+	}
+	if (row.storage === "stream") {
+		// Legacy Stream rows remain playable after switching the default to R2.
+		const master = await db.select({
+			id: schema.generationAssets.id,
+			objectKey: schema.generationAssets.objectKey,
+			contentType: schema.generationAssets.contentType,
+			byteSize: schema.generationAssets.byteSize,
+			checksum: schema.generationAssets.checksum,
+			status: schema.generationAssets.status,
+		}).from(schema.generationAssets).where(and(
+			eq(schema.generationAssets.jobId, row.jobId),
+			eq(schema.generationAssets.kind, "video_master"),
+			eq(schema.generationAssets.storage, "r2"),
+		)).get();
+		if (!master || master.status !== "ready") return Errors.serviceUnavailable(c, "R2 playback master is unavailable");
+		const downloadUrl = await presignGet(c.env, "assets", master.objectKey);
+		return okJson(c, {
+			assetId: row.id,
+			jobId: row.jobId,
+			kind: row.kind,
+			contentType: master.contentType,
+			sizeBytes: master.byteSize,
+			checksum: master.checksum,
+			status: "ready",
+			createdAt: row.createdAt,
+			readyAt: row.readyAt,
+			downloadUrl,
+			expiresInSeconds: 600,
 		});
 	}
 	const bucket: PresignBucket | null = row.storage === "renders" ? "renders"

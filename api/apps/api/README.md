@@ -158,12 +158,11 @@ All under `/api/v1`, Bearer session required (better-auth), zod-validated,
   - `POST /assets/download-url` — `{ bucket: "assets"|"renders", key }` →
     presigned GET; 403 unless `key` starts with `${userId}/`.
   - `GET /assets/generation/:assetId` — tenant-scoped generation media. A
-    Stream playback asset returns signed HLS/DASH URLs; an R2 master returns a
-    short-lived presigned download URL.
+    R2 playback assets return a short-lived presigned MP4 URL. Stream HLS/DASH
+    playback remains available only for legacy assets when explicitly enabled.
 
-Set the non-secret `STREAM_CUSTOMER_CODE` variable to the unique code shown in
-the Cloudflare Stream dashboard (without the `customer-` prefix). The native
-`STREAM` binding generates playback tokens; no Stream REST API token is used.
+`PLAYBACK_PROVIDER=r2` is the default and requires no Stream customer code.
+Set `PLAYBACK_PROVIDER=stream` only when the optional Stream adapter is enabled.
 
 ## curl examples
 
