@@ -8,6 +8,7 @@ yarn-error.log*
 .env
 .env.local
 .env.*.local
+.dev.vars
 .staging-resources.local.json
 
 # Build outputs

@@ -4,7 +4,7 @@ import { getDb, schema } from "@app/db";
 import { err } from "@app/shared";
 import type { AppBindings } from "../types.js";
 import { parsePermissions } from "../lib/permissions.js";
-import { parseStoredAdminSession, sessionKeyFromBearerToken, type StoredAuthSession } from "../lib/admin-session.js";
+import type { StoredAuthSession } from "../lib/admin-session.js";
 
 /** Validate Better Auth through the API Worker, then resolve admin/RBAC in D1. */
 export async function requireAdmin(c: Context<AppBindings>, next: Next) {
@@ -14,14 +14,14 @@ export async function requireAdmin(c: Context<AppBindings>, next: Next) {
 
 	let authBody: StoredAuthSession;
 	try {
-		// Better Auth's bearer response is a signed cookie value. Its first
-		// segment is the raw session token used as the shared KV key.
-		const sessionToken = sessionKeyFromBearerToken(token);
-		const sessionRecord = await c.env.KV.get(sessionToken);
-		if (!sessionRecord) return c.json(err("UNAUTHORIZED", "Invalid or expired session"), 401);
-		const parsed = parseStoredAdminSession(sessionRecord);
-		if (!parsed) return c.json(err("UNAUTHORIZED", "Invalid or expired session"), 401);
-		authBody = parsed;
+		// Ask the API Worker to validate the Better Auth bearer token. This keeps
+		// local API and admin Workers independent: their local KV stores are not
+		// shared, while deployed Workers can still validate through the same API.
+		const authResponse = await fetch(`${c.env.AUTH_API_URL.replace(/\/$/, "")}/get-session`, {
+			headers: { Authorization: `Bearer ${token}` },
+		});
+		if (!authResponse.ok) return c.json(err("UNAUTHORIZED", "Invalid or expired session"), 401);
+		authBody = (await authResponse.json()) as StoredAuthSession;
 	} catch {
 		return c.json(err("UNAUTHORIZED", "Invalid or expired session"), 401);
 	}

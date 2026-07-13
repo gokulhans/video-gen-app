@@ -26,8 +26,9 @@ app.use("*", async (c, next) => {
 	const requestId = c.req.header("cf-ray") ?? c.req.header("x-request-id") ?? crypto.randomUUID();
 	c.set("requestId", requestId);
 	await next();
+	const authOrigin = c.env.AUTH_API_URL ? new URL(c.env.AUTH_API_URL).origin : "";
 	c.header("x-request-id", requestId);
-	c.header("content-security-policy", "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' https:; frame-ancestors 'none'; base-uri 'self'; object-src 'none'");
+	c.header("content-security-policy", `default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' https: ${authOrigin}; frame-ancestors 'none'; base-uri 'self'; object-src 'none'`);
 	c.header("x-content-type-options", "nosniff");
 	c.header("referrer-policy", "no-referrer");
 	c.header("permissions-policy", "camera=(), microphone=(), geolocation=()");

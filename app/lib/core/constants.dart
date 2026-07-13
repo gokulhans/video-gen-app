@@ -13,13 +13,17 @@ class AppConstants {
   /// Base URL for the Cloudflare Workers API. Includes the `/api/v1` prefix.
   static const String apiBaseUrl = String.fromEnvironment(
     'API_BASE_URL',
-    defaultValue: 'https://api.gokulhansv.workers.dev/api/v1',
+    defaultValue: kDebugMode
+        ? 'http://192.168.20.5:8787/api/v1'
+        : 'https://api.gokulhansv.workers.dev/api/v1',
   );
 
   /// better-auth base path (separate from /api/v1, per CONTRACTS.md).
   static const String authBaseUrl = String.fromEnvironment(
     'AUTH_BASE_URL',
-    defaultValue: 'https://api.gokulhansv.workers.dev/api/auth',
+    defaultValue: kDebugMode
+        ? 'http://192.168.20.5:8787/api/auth'
+        : 'https://api.gokulhansv.workers.dev/api/auth',
   );
 
   static const String secureStorageTokenKey = 'auth_bearer_token';

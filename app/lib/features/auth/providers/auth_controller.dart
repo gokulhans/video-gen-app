@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/api_client.dart';
 import '../../../core/auth_repository.dart';
+import '../../../core/auth_debug.dart';
 import '../../../core/models/user.dart';
 import '../../notifications/services/fcm_service.dart';
 
@@ -34,33 +35,45 @@ class AuthController extends StateNotifier<AuthActionState> {
   final Ref _ref;
 
   Future<AppUser?> signIn(String email, String password) => _run(
-    () => _ref
+    actionName: 'email sign-in',
+    action: () => _ref
         .read(authRepositoryProvider)
         .signInWithEmail(email: email, password: password),
   );
 
   Future<AppUser?> signUp(String name, String email, String password) => _run(
-    () => _ref
+    actionName: 'email sign-up',
+    action: () => _ref
         .read(authRepositoryProvider)
         .signUpWithEmail(name: name, email: email, password: password),
   );
 
-  Future<AppUser?> signInWithGoogle() =>
-      _run(() => _ref.read(authRepositoryProvider).signInWithGoogle());
+  Future<AppUser?> signInWithGoogle() => _run(
+    actionName: 'Google sign-in',
+    action: () => _ref.read(authRepositoryProvider).signInWithGoogle(),
+  );
 
   Future<void> signOut() async {
+    authDebug('Sign-out started');
     state = state.copyWith(status: AuthActionStatus.loading);
     try {
       await _ref.read(fcmServiceProvider).unregisterCurrentToken();
-    } catch (_) {
+      authDebug('Sign-out: FCM token unregistered');
+    } catch (error) {
+      authDebug('Sign-out: FCM cleanup skipped (${error.runtimeType})');
       // The API also expires stale tokens; sign-out must remain available offline.
     }
     await _ref.read(authRepositoryProvider).signOut();
     state = const AuthActionState(status: AuthActionStatus.success);
     _ref.read(authTokenRevisionProvider.notifier).state++;
+    authDebug('Sign-out completed; auth token revision invalidated');
   }
 
-  Future<AppUser?> _run(Future<AppUser> Function() action) async {
+  Future<AppUser?> _run({
+    required String actionName,
+    required Future<AppUser> Function() action,
+  }) async {
+    authDebug('$actionName started');
     state = state.copyWith(
       status: AuthActionStatus.loading,
       errorMessage: null,
@@ -69,18 +82,27 @@ class AuthController extends StateNotifier<AuthActionState> {
       final user = await action();
       state = state.copyWith(status: AuthActionStatus.success);
       _ref.read(authTokenRevisionProvider.notifier).state++;
+      authDebug(
+        '$actionName succeeded for ${authEmailHint(user.email)} '
+        '(userId=${user.id}); auth token revision invalidated',
+      );
       return user;
     } on ApiException catch (e) {
       state = AuthActionState(
         status: AuthActionStatus.error,
         errorMessage: e.message,
       );
+      authDebug(
+        '$actionName failed: code=${e.code}, status=${e.statusCode}, '
+        'message=${e.message}',
+      );
       return null;
-    } catch (e) {
+    } catch (e, stackTrace) {
       state = AuthActionState(
         status: AuthActionStatus.error,
         errorMessage: e.toString(),
       );
+      authDebug('$actionName failed unexpectedly: $e\n$stackTrace');
       return null;
     }
   }

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/auth_debug.dart';
 import '../providers/auth_controller.dart';
 
 class SignUpScreen extends ConsumerStatefulWidget {
@@ -27,25 +28,38 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
   }
 
   Future<void> _submit() async {
-    if (!_formKey.currentState!.validate()) return;
+    authDebug('Sign-up form submitted');
+    if (!_formKey.currentState!.validate()) {
+      authDebug('Sign-up form validation failed');
+      return;
+    }
+    final name = _nameController.text.trim();
+    final email = _emailController.text.trim();
+    authDebug(
+      'Sign-up form valid; submitting nameLength=${name.length}, '
+      'email=${authEmailHint(email)}',
+    );
     final user = await ref
         .read(authControllerProvider.notifier)
-        .signUp(
-          _nameController.text.trim(),
-          _emailController.text.trim(),
-          _passwordController.text,
-        );
+        .signUp(name, email, _passwordController.text);
     if (user != null && mounted) {
+      authDebug('Sign-up screen navigating to /onboarding');
       context.go('/onboarding');
+    } else {
+      authDebug('Sign-up screen received no user; staying on /sign-up');
     }
   }
 
   Future<void> _submitGoogle() async {
+    authDebug('Google sign-in started from sign-up screen');
     final user = await ref
         .read(authControllerProvider.notifier)
         .signInWithGoogle();
     if (user != null && mounted) {
+      authDebug('Google sign-up screen navigating to /onboarding');
       context.go('/onboarding');
+    } else {
+      authDebug('Google sign-up screen received no user; staying on /sign-up');
     }
   }
 
@@ -54,7 +68,13 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
     final authState = ref.watch(authControllerProvider);
 
     ref.listen(authControllerProvider, (previous, next) {
+      if (previous?.status != next.status) {
+        authDebug(
+          'Sign-up screen auth state: ${previous?.status} -> ${next.status}',
+        );
+      }
       if (next.status == AuthActionStatus.error && next.errorMessage != null) {
+        authDebug('Sign-up screen showing authentication error snackbar');
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(SnackBar(content: Text(next.errorMessage!)));

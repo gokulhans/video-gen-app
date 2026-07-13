@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/auth_debug.dart';
 import '../providers/auth_controller.dart';
 
 class SignInScreen extends ConsumerStatefulWidget {
@@ -25,21 +26,34 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
   }
 
   Future<void> _submit() async {
-    if (!_formKey.currentState!.validate()) return;
+    authDebug('Sign-in form submitted');
+    if (!_formKey.currentState!.validate()) {
+      authDebug('Sign-in form validation failed');
+      return;
+    }
+    final email = _emailController.text.trim();
+    authDebug('Sign-in form valid; submitting email=${authEmailHint(email)}');
     final user = await ref
         .read(authControllerProvider.notifier)
-        .signIn(_emailController.text.trim(), _passwordController.text);
+        .signIn(email, _passwordController.text);
     if (user != null && mounted) {
+      authDebug('Sign-in screen navigating to /home');
       context.go('/home');
+    } else {
+      authDebug('Sign-in screen received no user; staying on /sign-in');
     }
   }
 
   Future<void> _submitGoogle() async {
+    authDebug('Google sign-in started from sign-in screen');
     final user = await ref
         .read(authControllerProvider.notifier)
         .signInWithGoogle();
     if (user != null && mounted) {
+      authDebug('Google sign-in screen navigating to /home');
       context.go('/home');
+    } else {
+      authDebug('Google sign-in screen received no user; staying on /sign-in');
     }
   }
 
@@ -48,7 +62,13 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
     final authState = ref.watch(authControllerProvider);
 
     ref.listen(authControllerProvider, (previous, next) {
+      if (previous?.status != next.status) {
+        authDebug(
+          'Sign-in screen auth state: ${previous?.status} -> ${next.status}',
+        );
+      }
       if (next.status == AuthActionStatus.error && next.errorMessage != null) {
+        authDebug('Sign-in screen showing authentication error snackbar');
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(SnackBar(content: Text(next.errorMessage!)));
