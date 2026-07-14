@@ -5,5 +5,5 @@
     "outDir": ".test-dist/workflows",
     "rootDir": "src/workflows"
   },
-  "include": ["src/workflows/generation-lifecycle.ts", "src/workflows/stream-publication.ts", "src/workflows/account-lifecycle-policy.ts"]
+  "include": ["src/workflows/generation-lifecycle.ts", "src/workflows/stream-publication.ts", "src/workflows/account-lifecycle-policy.ts", "src/workflows/p-video-persistence.ts"]
 }

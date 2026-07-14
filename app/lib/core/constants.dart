@@ -5,8 +5,6 @@ import 'package:flutter/foundation.dart';
 /// Override [apiBaseUrl] at build time with:
 ///   flutter run --dart-define=API_BASE_URL=https://api.example.com/api/v1
 ///
-/// Firebase is skipped in debug builds by default. Force it on with:
-///   flutter run --dart-define=ENABLE_FIREBASE=true
 class AppConstants {
   AppConstants._();
 
@@ -34,14 +32,6 @@ class AppConstants {
   static const String googleServerClientId = String.fromEnvironment(
     'GOOGLE_SERVER_CLIENT_ID',
     defaultValue: '',
-  );
-
-  /// When false, Firebase/FCM init is skipped (faster local dev without
-  /// google-services.json). Off by default in debug; on in release/profile.
-  /// Override: `--dart-define=ENABLE_FIREBASE=true|false`
-  static const bool enableFirebase = bool.fromEnvironment(
-    'ENABLE_FIREBASE',
-    defaultValue: !kDebugMode,
   );
 
   static const Duration autosaveDebounce = Duration(seconds: 2);

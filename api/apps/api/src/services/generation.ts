@@ -18,13 +18,26 @@ import { ensureUploadReady, loadUploadByFetchToken, type UploadKind } from "../l
 const QUOTE_TTL_SECONDS = 10 * 60;
 const RESERVATION_TTL_MS = 30 * 60_000;
 
+const PublishedPVideoDefaults = NormalizedPVideoInput.partial()
+	.extend({
+		// Early P-Video seed data stored this server-owned safety marker in the
+		// template defaults. Keep those immutable published versions usable, but
+		// never accept a value that would weaken the adapter's enforced safety.
+		safetyFilterEnabled: z.literal(true).optional(),
+	})
+	.transform(({ safetyFilterEnabled: _legacySafetyMarker, ...defaults }) => defaults);
+
 const PublishedConfig = z.object({
 	provider: z.literal("replicate"),
 	model: z.literal("prunaai/p-video"),
 	modelVersion: z.string().min(1),
 	mode: z.enum(["test", "production"]).default("production"),
-	defaults: NormalizedPVideoInput.partial().default({}),
+	defaults: PublishedPVideoDefaults.default({}),
 }).passthrough();
+
+export function parsePublishedPVideoConfig(value: unknown) {
+	return PublishedConfig.safeParse(value);
+}
 
 const JobConfigurationSnapshot = z.object({
 	schemaVersion: z.literal(1),
@@ -184,7 +197,7 @@ async function resolvePublishedSelection(env: Env, versionId: string) {
 		.orderBy(schema.templatePipelineBindings.priority)
 		.get();
 	if (!row || row.pipelineType !== "p_video") throw new GenerationServiceError("not_found", "Published template version not found");
-	const published = PublishedConfig.safeParse(row.configSnapshot);
+	const published = parsePublishedPVideoConfig(row.configSnapshot);
 	if (!published.success || published.data.provider !== row.providerKey || published.data.model !== row.modelKey || published.data.modelVersion !== row.modelVersionRef) {
 		throw new GenerationServiceError("conflict", "Published template configuration is invalid");
 	}
@@ -429,15 +442,15 @@ export async function createGenerationJob(env: Env, userId: string, requestId: s
 					stockCharacterId, userCharacterVersionId, idempotencyKey, requestId, workflowInstanceId,
 					JSON.stringify(stored.normalizedInputs), JSON.stringify(stored.configurationSnapshot), stored.quote.creditAmount,
 					stored.estimatedCostMicros, now, now, userId, stored.quote.creditAmount),
-			env.DB.prepare(`INSERT INTO credit_reservations
-				(id,user_id,job_id,operation_key,amount,status,reserve_transaction_id,expires_at,created_at,updated_at)
-				VALUES (?,?,?,?,?,'reserved',?,?,?,?)`)
-				.bind(reservationId, userId, jobId, `generation:${jobId}:reserve`, stored.quote.creditAmount, transactionId, now + RESERVATION_TTL_MS, now, now),
 			env.DB.prepare("UPDATE user SET tokens=tokens-?,updated_at=? WHERE id=? AND tokens>=?")
 				.bind(stored.quote.creditAmount, now, userId, stored.quote.creditAmount),
 			env.DB.prepare(`INSERT INTO token_transactions (id,user_id,amount,type,description,operation_key,created_at)
 				VALUES (?,?,?,'generation_reserve',?,?,?)`)
 				.bind(transactionId, userId, -stored.quote.creditAmount, `Reserve credits for generation ${jobId}`, `generation:${jobId}:reserve-debit`, now),
+			env.DB.prepare(`INSERT INTO credit_reservations
+				(id,user_id,job_id,operation_key,amount,status,reserve_transaction_id,expires_at,created_at,updated_at)
+				VALUES (?,?,?,?,?,'reserved',?,?,?,?)`)
+				.bind(reservationId, userId, jobId, `generation:${jobId}:reserve`, stored.quote.creditAmount, transactionId, now + RESERVATION_TTL_MS, now, now),
 			env.DB.prepare(`INSERT INTO generation_job_events
 				(id,job_id,operation_key,source,event_type,from_status,to_status,payload,created_at) VALUES (?,?,?,?,?,?,?,?,?)`)
 				.bind(crypto.randomUUID(), jobId, `created:${jobId}`, "api", "job_created", "draft", "credit_reserved", JSON.stringify({ requestId, quoteId: stored.quote.quoteId }), now),

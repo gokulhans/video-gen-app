@@ -44,8 +44,9 @@ class _GenerationResultScreenState
     if (_initializedUrl == url) return;
     _initializedUrl = url;
     final previous = _video;
-    final next = VideoPlayerController.networkUrl(Uri.parse(url));
+    VideoPlayerController? next;
     try {
+      next = VideoPlayerController.networkUrl(Uri.parse(url));
       await next.initialize();
       await next.play();
       if (!mounted) {
@@ -58,7 +59,7 @@ class _GenerationResultScreenState
       });
       await previous?.dispose();
     } catch (_) {
-      await next.dispose();
+      await next?.dispose();
       if (mounted) {
         setState(() => _playbackError = 'Playback could not be started.');
       }

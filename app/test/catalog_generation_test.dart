@@ -2,6 +2,9 @@ import 'package:ai_video_maker/core/models/catalog.dart';
 import 'package:ai_video_maker/core/models/generation.dart';
 import 'package:ai_video_maker/core/repositories/generation_repository.dart';
 import 'package:ai_video_maker/features/create/providers/generation_providers.dart';
+import 'package:ai_video_maker/features/create/screens/generation_job_screen.dart';
+import 'package:ai_video_maker/design_system/theme/app_theme.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -74,17 +77,52 @@ void main() {
       expect(repository.getJobCalls, countAtDispose);
     },
   );
+
+  testWidgets('completed generation offers its ready video to the user', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(375, 812));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final repository = _FakeGenerationRepository(completedJob: true);
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          generationRepositoryProvider.overrideWithValue(repository),
+        ],
+        child: MaterialApp(
+          theme: AppTheme.dark,
+          home: const GenerationJobScreen(jobId: 'job-1'),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Your video is ready'), findsOneWidget);
+    expect(
+      find.text('The final asset is stored and ready in your library.'),
+      findsOneWidget,
+    );
+    expect(find.text('Watch video'), findsOneWidget);
+    expect(find.text('100%'), findsOneWidget);
+    expect(find.textContaining('Cancel and return credits'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
 }
 
-Map<String, dynamic> _jobJson({String status = 'queued'}) => {
+Map<String, dynamic> _jobJson({
+  String status = 'queued',
+  int progress = 20,
+  String? videoAssetId,
+}) => {
   'id': 'job-1',
   'templateId': 'template-1',
   'templateVersionId': 'version-1',
   'status': status,
-  'progress': 20,
+  'progress': progress,
   'quotedCredits': 2,
   'previewAssetId': null,
-  'videoAssetId': null,
+  'videoAssetId': videoAssetId,
   'error': null,
   'createdAt': 1000,
   'updatedAt': 2000,
@@ -92,8 +130,12 @@ Map<String, dynamic> _jobJson({String status = 'queued'}) => {
 };
 
 class _FakeGenerationRepository implements GenerationRepository {
-  _FakeGenerationRepository({this.failFirstSubmission = false});
+  _FakeGenerationRepository({
+    this.failFirstSubmission = false,
+    this.completedJob = false,
+  });
   final bool failFirstSubmission;
+  final bool completedJob;
   final List<String> idempotencyKeys = [];
   int getJobCalls = 0;
 
@@ -129,7 +171,15 @@ class _FakeGenerationRepository implements GenerationRepository {
   @override
   Future<GenerationJob> getJob(String id) async {
     getJobCalls++;
-    return GenerationJob.fromJson(_jobJson());
+    return GenerationJob.fromJson(
+      completedJob
+          ? _jobJson(
+              status: 'completed',
+              progress: 100,
+              videoAssetId: 'asset-master',
+            )
+          : _jobJson(),
+    );
   }
 
   @override

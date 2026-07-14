@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "wrangler dev",
+    "dev": "wrangler dev --ip 0.0.0.0 --port 8789 --persist-to ../../.wrangler/state",
     "deploy": "wrangler deploy",
     "typecheck": "tsc --noEmit",
     "test": "tsc -p tsconfig.test.json && tsc -p tsconfig.lifecycle-test.json && node --test test/*.test.mjs"
@@ -17,7 +17,8 @@
     "zod": "^4.0.5"
   },
   "devDependencies": {
-    "@cloudflare/workers-types": "^4.20260110.0",
+    "@cloudflare/workers-types": "^5.20260708.1",
+    "miniflare": "4.20260701.0",
     "typescript": "^5.7.0",
     "wrangler": "^4.0.0"
   }

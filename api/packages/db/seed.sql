@@ -83,7 +83,7 @@ VALUES
 	 'p_video', 1,
 	 '{"durations":[1],"aspectRatios":["16:9","9:16","1:1"],"resolutions":["720p"],"supportsImage":true,"supportsAudio":false}',
 	 'price_pvideo_test_v1',
-	 '{"provider":"replicate","model":"prunaai/p-video","modelVersion":"68b33d8ba1189a1a997abf2c09edc5bbb90d6cfa239befbf9c903bcfee7f9a59","mode":"test","defaults":{"durationSec":1,"aspectRatio":"16:9","resolution":"720p","fps":24,"draft":true,"promptUpsampling":true,"includeGeneratedAudio":false,"safetyFilterEnabled":true}}',
+	 '{"provider":"replicate","model":"prunaai/p-video","modelVersion":"68b33d8ba1189a1a997abf2c09edc5bbb90d6cfa239befbf9c903bcfee7f9a59","mode":"test","defaults":{"durationSec":1,"aspectRatio":"16:9","resolution":"720p","fps":24,"draft":true,"promptUpsampling":true,"includeGeneratedAudio":false}}',
 	 unixepoch()*1000, unixepoch()*1000);
 
 INSERT OR IGNORE INTO template_category_links (template_id, category_id, sort_order, created_at)

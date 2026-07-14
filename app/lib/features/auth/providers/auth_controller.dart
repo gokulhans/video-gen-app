@@ -4,7 +4,6 @@ import '../../../core/api_client.dart';
 import '../../../core/auth_repository.dart';
 import '../../../core/auth_debug.dart';
 import '../../../core/models/user.dart';
-import '../../notifications/services/fcm_service.dart';
 
 enum AuthActionStatus { idle, loading, success, error }
 
@@ -56,13 +55,6 @@ class AuthController extends StateNotifier<AuthActionState> {
   Future<void> signOut() async {
     authDebug('Sign-out started');
     state = state.copyWith(status: AuthActionStatus.loading);
-    try {
-      await _ref.read(fcmServiceProvider).unregisterCurrentToken();
-      authDebug('Sign-out: FCM token unregistered');
-    } catch (error) {
-      authDebug('Sign-out: FCM cleanup skipped (${error.runtimeType})');
-      // The API also expires stale tokens; sign-out must remain available offline.
-    }
     await _ref.read(authRepositoryProvider).signOut();
     state = const AuthActionState(status: AuthActionStatus.success);
     _ref.read(authTokenRevisionProvider.notifier).state++;

@@ -34,6 +34,13 @@ class _GenerationJobScreenState extends ConsumerState<GenerationJobScreen> {
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         foregroundColor: tokens.immersiveForeground,
+        leading: IconButton(
+          tooltip: 'Back to History',
+          onPressed: () => context.canPop()
+              ? context.pop()
+              : context.go('/history'),
+          icon: const Icon(Icons.arrow_back_rounded),
+        ),
         title: const Text('Generation'),
       ),
       body: AppPage(

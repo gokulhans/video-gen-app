@@ -96,7 +96,11 @@ export type GenerationParams = z.infer<typeof GenerationParams>;
 // ---------- Versioned template inputs ----------
 
 const ContractId = z.string().trim().min(1).max(128);
-const InputKey = z.string().trim().min(1).max(64).regex(/^[a-z][a-z0-9_]*$/);
+// Input keys are provider-neutral contract names. The generation contracts use
+// lower camel case (for example `durationSec` and `aspectRatio`), while a few
+// legacy inputs still use snake_case. Accept both forms without allowing
+// punctuation, whitespace, or a leading digit.
+const InputKey = z.string().trim().min(1).max(64).regex(/^[a-z][A-Za-z0-9_]*$/);
 const InputLabel = z.string().trim().min(1).max(120);
 const InputHelpText = z.string().trim().max(500);
 

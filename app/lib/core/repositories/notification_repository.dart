@@ -18,19 +18,6 @@ class NotificationRepository {
       _api.post('/notifications/$id/read', parser: (_) {});
   Future<void> markAllRead() =>
       _api.post('/notifications/read-all', parser: (_) {});
-  Future<void> registerDevice({
-    required String fcmToken,
-    required String platform,
-  }) => _api.post(
-    '/devices/register',
-    body: {'fcmToken': fcmToken, 'platform': platform},
-    parser: (_) {},
-  );
-  Future<void> unregisterDevice(String fcmToken) => _api.post(
-    '/devices/unregister',
-    body: {'fcmToken': fcmToken},
-    parser: (_) {},
-  );
 }
 
 final notificationRepositoryProvider = Provider(

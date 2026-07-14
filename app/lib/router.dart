@@ -27,8 +27,7 @@ import 'features/shell/authenticated_shell.dart';
 import 'features/brands/screens/brand_kits_screen.dart';
 import 'features/settings/screens/settings_screen.dart';
 
-/// Global navigator key so services (e.g. FCM tap handler) can navigate
-/// without a BuildContext.
+/// Global navigator key for navigation outside an individual page context.
 final rootNavigatorKey = GlobalKey<NavigatorState>();
 
 final routerProvider = Provider<GoRouter>((ref) {

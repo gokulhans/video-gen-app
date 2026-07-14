@@ -24,6 +24,11 @@ import {
 import { ReplicateProviderError, type ReplicatePredictionRef } from "../providers/replicate.js";
 import { transitionDecision } from "./generation-lifecycle.js";
 import {
+  capturePVideoReservationAndComplete,
+  insertPVideoOutcomeNotification,
+  recordPVideoMasterAsset,
+} from "./p-video-persistence.js";
+import {
   isPersistedStreamUid,
   findStreamRecoveryCandidate,
   normalizeStreamUid,
@@ -281,30 +286,6 @@ async function markPredictionSucceeded(env: Env, context: JobContext, attemptId:
   ]);
 }
 
-async function recordMasterAsset(
-  env: Env,
-  context: JobContext,
-  attemptId: string,
-  stored: { key: string; contentType: "video/mp4"; bytes: number; etag: string },
-): Promise<void> {
-  const now = Date.now();
-  await env.DB.prepare(`
-    INSERT INTO generation_assets
-      (id, job_id, attempt_id, kind, storage, object_key, content_type, byte_size, checksum, status, created_at, ready_at)
-    VALUES (?1, ?2, ?3, 'video_master', 'r2', ?4, ?5, ?6, ?7, 'ready', ?8, ?8)
-    ON CONFLICT(storage, object_key) DO UPDATE SET
-      attempt_id = excluded.attempt_id,
-      content_type = excluded.content_type,
-      byte_size = excluded.byte_size,
-      checksum = excluded.checksum,
-      status = 'ready',
-      ready_at = excluded.ready_at
-  `).bind(
-    `asset_${context.jobId}_master`, context.jobId, attemptId, stored.key,
-    stored.contentType, stored.bytes, stored.etag, now,
-  ).run();
-}
-
 type StreamPublication = {
   uid: string;
   readyToStream: boolean;
@@ -434,57 +415,6 @@ async function markStreamAssetReady(env: Env, context: JobContext, uid: string):
   if (changes(result) === 0) throw new Error("Could not mark Stream playback asset ready");
 }
 
-async function captureAndComplete(env: Env, context: JobContext): Promise<void> {
-  const now = Date.now();
-  const transactionId = `tx_capture_${context.jobId}`;
-  const operationKey = `generation:${context.jobId}:capture`;
-  await env.DB.batch([
-    env.DB.prepare(`
-      INSERT OR IGNORE INTO token_transactions
-        (id, user_id, amount, type, description, project_id, operation_key, created_at)
-      SELECT ?1, user_id, 0, 'generation_capture', ?2, ?3, ?4, ?5
-      FROM credit_reservations WHERE job_id = ?6 AND user_id = ?7 AND status IN ('reserved', 'captured')
-    `).bind(
-      transactionId, `Captured reserved credits for generation ${context.jobId}`,
-      context.projectId, operationKey, now, context.jobId, context.userId,
-    ),
-    env.DB.prepare(`
-      UPDATE credit_reservations
-      SET status = 'captured', settlement_transaction_id = ?1, settled_at = ?2, updated_at = ?2
-      WHERE job_id = ?3 AND user_id = ?4 AND status = 'reserved'
-    `).bind(transactionId, now, context.jobId, context.userId),
-    env.DB.prepare(`
-      INSERT OR IGNORE INTO generation_job_events
-        (id, job_id, operation_key, source, event_type, from_status, to_status, payload, created_at)
-      SELECT ?1, id, 'transition:publishing:completed', 'workflow', 'state_transition',
-        'publishing', 'completed', ?2, ?3
-      FROM generation_jobs WHERE id = ?4 AND user_id = ?5 AND status = 'publishing'
-    `).bind(
-      `evt_${context.jobId}_publishing_completed`, JSON.stringify({ settlement: "captured" }), now,
-      context.jobId, context.userId,
-    ),
-    env.DB.prepare(`
-      UPDATE generation_jobs
-      SET status = 'completed', progress = 100,
-        error_code = NULL, error_message = NULL, completed_at = ?1, updated_at = ?1
-      WHERE id = ?2 AND user_id = ?3 AND status = 'publishing'
-        AND EXISTS (
-          SELECT 1 FROM credit_reservations
-          WHERE job_id = ?2 AND user_id = ?3 AND status = 'captured'
-        )
-    `).bind(now, context.jobId, context.userId),
-  ]);
-
-  const state = await env.DB.prepare(`
-    SELECT j.status AS job_status, r.status AS reservation_status
-    FROM generation_jobs j JOIN credit_reservations r ON r.job_id = j.id
-    WHERE j.id = ?1 AND j.user_id = ?2
-  `).bind(context.jobId, context.userId).first<{ job_status: string; reservation_status: string }>();
-  if (state?.job_status !== "completed" || state.reservation_status !== "captured") {
-    throw new Error("Could not atomically complete generation settlement");
-  }
-}
-
 async function releaseAndFail(env: Env, identity: InternalJobIdentity, error: unknown): Promise<void> {
   const failure = publicFailure(error);
   const now = Date.now();
@@ -545,27 +475,9 @@ async function notifyBestEffort(env: Env, identity: InternalJobIdentity, complet
       .where(and(eq(schema.generationJobs.id, identity.jobId), eq(schema.generationJobs.userId, identity.userId)))
       .limit(1);
     if (!job) return;
-    const notificationId = `notification_${identity.jobId}_${completed ? "completed" : "failed"}`;
-    const notificationType = completed ? "generation_complete" : "system";
-    const dedupeKey = `p_video:${identity.jobId}:${completed ? "completed" : "failed"}`;
-    await env.DB.prepare(`
-      INSERT OR IGNORE INTO notifications
-        (id, user_id, type, title, message, project_id, job_id, deep_link,
-         dedupe_key, metadata, is_read, push_sent, email_sent, created_at)
-      VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, 0, 0, 0, ?11)
-    `).bind(
-      notificationId,
-      identity.userId,
-      notificationType,
-      completed ? "Your video is ready" : "Video generation failed",
-      completed ? "Your generated video is ready to view." : "Generation failed and your reserved credits were returned.",
-      job.projectId,
-      identity.jobId,
-      `/generation/${identity.jobId}`,
-      dedupeKey,
-      JSON.stringify({ jobId: identity.jobId, outcome: completed ? "completed" : "failed" }),
-      Date.now(),
-    ).run();
+    const notificationId = await insertPVideoOutcomeNotification(
+      env.DB, identity, job.projectId, completed,
+    );
 
     const preferences = await db.select({
       pushEnabled: schema.notificationPreferences.pushEnabled,
@@ -643,7 +555,7 @@ export class PVideoGenerationWorkflow extends WorkflowEntrypoint<Env, InternalJo
         () => storePVideoOutput(this.env.ASSETS_BUCKET, assetKey, outputUrl, prediction.version),
       );
       await step.do("record-r2-master-asset", { retries: STEP_RETRIES, timeout: "1 minute" }, () =>
-        recordMasterAsset(this.env, context, attempt.attemptId, stored));
+        recordPVideoMasterAsset(this.env.DB, context, attempt.attemptId, stored));
       await step.do("transition-to-post-processing", { retries: STEP_RETRIES, timeout: "1 minute" }, () =>
         transitionJob(this.env.DB, context.jobId, "ingesting", "post_processing", 85));
       await step.do("transition-to-publishing", { retries: STEP_RETRIES, timeout: "1 minute" }, () =>
@@ -690,7 +602,7 @@ export class PVideoGenerationWorkflow extends WorkflowEntrypoint<Env, InternalJo
         });
       }
       await step.do("capture-reservation-and-complete", { retries: STEP_RETRIES, timeout: "1 minute" }, () =>
-        captureAndComplete(this.env, context));
+        capturePVideoReservationAndComplete(this.env.DB, context));
 
       // The job and credit settlement are already terminal. Notification failures
       // are observed but deliberately cannot change the completed outcome.
